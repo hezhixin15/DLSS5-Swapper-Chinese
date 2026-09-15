@@ -1,6 +1,4 @@
-<img width="398" height="130" alt="image" src="https://github.com/user-attachments/assets/e897754d-23e2-4dcd-b2bc-c18fed6d353c" /># DLSS5-Swapper-zh_CN
-
-DLSS 5 Swapper 中文增强版：全界面与游戏内叠加层完整汉化，并修复部分游戏自带 D3D12 运行时被误判冲突导致无法安装的问题。
+DLSS 5 Swapper 中文增强版：全界面与游戏内叠加层完整汉化，并修复部分游戏自带 D3D12 运行时被误判冲突导致无法安装的问题
 
 ## 这是什么
 
