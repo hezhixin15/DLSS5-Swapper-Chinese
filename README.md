@@ -1,4 +1,4 @@
-# DLSS5-Swapper-zh_CN
+<img width="398" height="130" alt="image" src="https://github.com/user-attachments/assets/e897754d-23e2-4dcd-b2bc-c18fed6d353c" /># DLSS5-Swapper-zh_CN
 
 DLSS 5 Swapper 中文增强版：全界面与游戏内叠加层完整汉化，并修复部分游戏自带 D3D12 运行时被误判冲突导致无法安装的问题。
 
@@ -27,3 +27,12 @@ DLSS 5 Swapper 中文增强版：全界面与游戏内叠加层完整汉化，�
 
 
 感谢原作者 [Rakan Alkhaldi](https://github.com/rakanki911) 的作品。
+
+## 声明
+本项目部分代码与架构方案由 AI 辅助编写与设计，使用的模型包括：
+
+通义千问和GPT-6参与部分代码逻辑与功能实现 
+
+项目由人类作者 [hezhixin15]主导维护，AI作为辅助工具协助开发，代码新人可能我写的代码没这么好，请见谅
+
+
