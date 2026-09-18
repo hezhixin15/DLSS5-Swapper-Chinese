@@ -88,7 +88,7 @@
 
 - [hezhixin15](https://github.com/hezhixin15) — 專案作者與維護者
 - [Rakan Alkhaldi](https://github.com/rakanki911) — 原作者
-- AI 輔助（Trae）— 參與部分程式碼邏輯與功能實作
+- AI 輔助 參與部分程式碼邏輯與功能實作
 
 ## 致謝
 
