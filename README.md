@@ -27,7 +27,7 @@ DLSS 5 Swapper 中文增强版：全界面与游戏内叠加层完整汉化，�
 
 - [hezhixin15](https://github.com/hezhixin15) — 项目作者与维护者
 - [Rakan Alkhaldi](https://github.com/rakanki911) — 原作者
-- AI 辅助（Trae）— 参与部分代码逻辑与功能实现
+- AI 辅助— 参与翻译和部分代码逻辑与功能实现
 
 ## 致敬
 
@@ -39,6 +39,6 @@ DLSS 5 Swapper 中文增强版：全界面与游戏内叠加层完整汉化，�
 
 通义千问和GPT-6参与部分代码逻辑与功能实现 
 
-项目由hezhixin15主导维护，AI作为辅助工具协助开发，代码新人可能我写的代码没这么好，请见谅
+项目由hezhixin15主导维护，AI作为辅助工具协助开发
 
 
