@@ -35,6 +35,7 @@ const journal = require('./src/core/file-journal');
 const guards = require('./src/core/install-guards');
 const compatibility = require('./src/core/compatibility');
 const antiCheatWarning = require('./src/shared/anti-cheat-warning');
+const crashWarning = require('./src/shared/crash-warning');
 const featureI18n = require('./src/shared/feature-i18n');
 const featureText = (key, ...args) => featureI18n.t(loadState().lang, key, ...args);
 const vulkanLayer = require('./src/core/vulkan-layer');
@@ -581,7 +582,9 @@ ipcMain.handle('settings', () => {
     hidden: [...(state.hidden || [])],
     autoScanDrives: state.autoScanDrives === true,
     groupGamesByStore: state.groupGamesByStore !== false,
-    closeToTray: state.closeToTray !== false
+    closeToTray: state.closeToTray !== false,
+    autoUpdateCheck: state.autoUpdateCheck !== false,
+    skippedUpdates: [...(state.skippedUpdates || [])]
   };
 });
 
@@ -933,6 +936,13 @@ ipcMain.handle('set-auto-scan-drives', (_event, enabled) => {
   if (!state.autoScanDrives) lastRoots = [];
   saveState(state);
   return state.autoScanDrives;
+});
+
+ipcMain.handle('set-auto-update-check', (_event, enabled) => {
+  const state = loadState();
+  state.autoUpdateCheck = enabled === true;
+  saveState(state);
+  return state.autoUpdateCheck;
 });
 
 // Used when a folder arrives by drop rather than through the picker.
@@ -1525,23 +1535,86 @@ function newerRelease(current, latest) {
   }
   return false;
 }
-ipcMain.handle('update-check', async () => {
+// The Chinese enhanced edition checks its own repository, so the version found
+// there is one this build can actually update to.
+const UPDATE_REPO = 'hezhixin15/DLSS5-Swapper-zh_CN';
+const UPDATE_TIMEOUT_MS = 10000;
+async function lookupUpdate() {
   if (updateAnswer) return updateAnswer;
   const current = app.getVersion();
   try {
-    const response = await fetch('https://api.github.com/repos/rakanki911/DLSS5-Swapper/releases/latest', {
+    const response = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, {
       headers: { 'User-Agent': `DLSS5-Swapper/${current}`, Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(8000)
+      signal: AbortSignal.timeout(UPDATE_TIMEOUT_MS)
     });
     if (!response.ok) throw Error(String(response.status));
     const release = await response.json();
     const latest = String(release.tag_name || '').replace(/^v/, '');
-    updateAnswer = { current, latest, newer: newerRelease(current, latest) };
+    // The one-click installer is the first .exe the release carries; a release
+    // without one still tells the person what is new and where to get it.
+    const asset = (release.assets || []).find((a) => /\.exe$/i.test(String(a.name || '')));
+    updateAnswer = {
+      current, latest, newer: newerRelease(current, latest),
+      asset: asset && asset.browser_download_url ? { name: asset.name, url: asset.browser_download_url } : null,
+      notes: typeof release.body === 'string' && release.body.trim() ? release.body.trim() : null
+    };
   } catch {
     // Offline, rate-limited or blocked: say nothing rather than worry anyone.
-    updateAnswer = { current, latest: null, newer: false };
+    updateAnswer = { current, latest: null, newer: false, asset: null, notes: null };
   }
   return updateAnswer;
+}
+ipcMain.handle('update-check', () => lookupUpdate());
+
+// One download at a time; a second click while one runs is a no-op.
+let updateDownloading = false;
+ipcMain.handle('download-update', async (event) => {
+  if (updateDownloading) return { ok: false, reason: 'busy' };
+  const answer = await lookupUpdate();
+  if (!answer.latest || !answer.asset) return { ok: false, reason: 'no-asset' };
+  updateDownloading = true;
+  const sender = event.sender;
+  const file = path.join(app.getPath('temp'), `DLSS5-Swapper-${answer.latest}-${Date.now()}.exe`);
+  try {
+    const response = await fetch(answer.asset.url, { signal: AbortSignal.timeout(10 * 60 * 1000) });
+    if (!response.ok || !response.body) throw Error(String(response.status));
+    const total = Number(response.headers.get('content-length') || 0);
+    let received = 0;
+    const out = fs.createWriteStream(file);
+    for await (const chunk of response.body) {
+      received += chunk.length;
+      // Respect the stream's high-water mark so a fast link cannot buffer the
+      // whole installer in memory ahead of the disk.
+      if (!out.write(chunk)) await new Promise((resolve) => out.once('drain', resolve));
+      // Progress is streamed to the dialog, not returned: the download may be
+      // large and the renderer should repaint between chunks.
+      if (total) sender.send('update-progress', { percent: Math.min(100, Math.round((received / total) * 100)) });
+    }
+    await new Promise((resolve, reject) => out.end((err) => (err ? reject(err) : resolve())));
+    sender.send('update-progress', { percent: 100 });
+    // Hand it to the installer and step aside; the running copy cannot update
+    // itself in place, so it exits and lets the installer take over.
+    await shell.openPath(file);
+    setImmediate(() => app.quit());
+    return { ok: true };
+  } catch (error) {
+    try { fs.unlinkSync(file); } catch { /* nothing was fully written */ }
+    return { ok: false, reason: 'download', message: error && error.message ? error.message : String(error) };
+  } finally {
+    updateDownloading = false;
+  }
+});
+
+// A version the person told the app to stop asking about. Startup auto-detection
+// honours it; a manual check in Settings still shows what it finds.
+ipcMain.handle('update-skip', (_event, version) => {
+  if (typeof version !== 'string' || !version) return false;
+  const state = loadState();
+  const skipped = new Set(state.skippedUpdates || []);
+  skipped.add(version);
+  state.skippedUpdates = [...skipped];
+  saveState(state);
+  return true;
 });
 ipcMain.handle('details', async (_event, dir) => {
   const detailsPayload = payload();
@@ -1571,6 +1644,7 @@ ipcMain.handle('details', async (_event, dir) => {
     emulator: scan.emulator,
     installedRoute: scan.install && scan.install.route,
     antiCheatWarning: compatibility.hasAntiCheat(dir, scan.chosen?.path),
+    crashWarning: Boolean(crashWarning.known(scan.chosen?.path)),
     installedApi: scan.install && scan.install.api,
     installedExe: scan.install && scan.install.exe,
     previousReShadeRoute: scan.install && scan.install.previousReShadeRoute,
@@ -1582,6 +1656,7 @@ ipcMain.handle('details', async (_event, dir) => {
       emulator: e.emulator,
       installIssue: compatibility.targetIssue(dir, e.path),
       antiCheatWarning: compatibility.hasAntiCheat(dir, e.path),
+      crashWarning: Boolean(crashWarning.known(e.path)),
       hasNativeDlss,
       apiOverride: apiPreference(state, dir, e.path),
       apiChoices: e.apiChoices || [{ api: e.api, label: e.apiLabel }],
@@ -1674,6 +1749,13 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
     if (answer.response !== 1) return { ok: false, cancelled: true };
     antiCheatAcknowledged = true;
     send({ code: 'antiCheatRiskAccepted', params: {} });
+  }
+  // A crash the maintainer has personally reproduced is worth one explicit
+  // confirmation, in the same one-attempt shape as the anti-cheat consent.
+  if (crashWarning.known(target.path)) {
+    const answer = await dialog.showMessageBox(win, crashWarning.dialogOptions(loadState().lang, dir, target.path));
+    if (answer.response !== 1) return { ok: false, cancelled: true };
+    send({ code: 'crashRiskAccepted', params: {} });
   }
   // The ReShade and Feeder routes both drive the RenoDX neural consumer, which
   // upstream has measured faulting inside NVIDIA's runtime on a known driver
