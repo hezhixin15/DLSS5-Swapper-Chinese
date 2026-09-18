@@ -98,7 +98,7 @@ test('the lookup targets the Chinese enhanced repository with a 10 second timeou
     fetchImpl: async (u, opts) => { url = u; timeout = opts?.signal?.timeout ?? 0; return release('v2.2.2'); }
   });
   const answer = await handlers.get('update-check')();
-  assert.equal(url, 'https://api.github.com/repos/hezhixin15/DLSS5-Swapper-zh_CN/releases/latest',
+  assert.equal(url, 'https://api.github.com/repos/hezhixin15/DLSS5-Swapper-Chinese/releases/latest',
     'the check asks the Chinese enhanced edition, not the original repository');
   assert.equal(timeout, 10000, 'the check gives up after 10 seconds');
   assert.equal(answer.newer, true);

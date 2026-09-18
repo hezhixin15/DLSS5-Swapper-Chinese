@@ -1537,7 +1537,7 @@ function newerRelease(current, latest) {
 }
 // The Chinese enhanced edition checks its own repository, so the version found
 // there is one this build can actually update to.
-const UPDATE_REPO = 'hezhixin15/DLSS5-Swapper-zh_CN';
+const UPDATE_REPO = 'hezhixin15/DLSS5-Swapper-Chinese';
 const UPDATE_TIMEOUT_MS = 10000;
 async function lookupUpdate() {
   if (updateAnswer) return updateAnswer;

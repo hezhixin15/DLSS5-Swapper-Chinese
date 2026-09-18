@@ -25,7 +25,7 @@
 
 ## 安装
 
-无需任何环境依赖，下载 [Release](https://github.com/hezhixin15/DLSS5-Swapper-zh_CN/releases) 中的安装包，双击安装后即可使用。
+无需任何环境依赖，下载 [Release](https://github.com/hezhixin15/DLSS5-Swapper-Chinese/releases) 中的安装包，双击安装后即可使用。
 
 部分游戏的渲染 API 会出现识别错误。如果你不知道如何查看自己游戏对应的 API，可以去下载一个“微星小飞机”APP。如果不会操作，可以去抖音或者哔哩哔哩上学习。
 
@@ -78,7 +78,7 @@
 
 ## 安裝
 
-無需任何環境相依，下載 [Release](https://github.com/hezhixin15/DLSS5-Swapper-zh_CN/releases) 中的安裝檔，雙擊安裝後即可使用。
+無需任何環境相依，下載 [Release](https://github.com/hezhixin15/DLSS5-Swapper-Chinese/releases) 中的安裝檔，雙擊安裝後即可使用。
 
 部分遊戲的渲染 API 會出現辨識錯誤。如果你不知道如何查看自己遊戲對應的 API，可以去下載一個「微星小飛機」APP。如果不會操作，可以去抖音或 B 站（嗶哩嗶哩）上學習。
 
