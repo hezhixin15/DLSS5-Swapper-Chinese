@@ -6,7 +6,7 @@ DLSS 5 Swapper 中文增强版：全界面与游戏内叠加层完整汉化，�
 
 ## 相比原版
 
-- **完整中文汉化**：主界面 + 游戏内叠加层全量翻译
+- **完整简体/繁体中文汉化**：主界面 + 游戏内叠加层全量翻译
 - **Bug 修复**：修复部分游戏（如 CoD 等）自带 Win7 D3D12 运行时被误判为冲突、导致无法安装的问题
 
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/41956418-cb59-4a4a-b938-bc864b182587" />
