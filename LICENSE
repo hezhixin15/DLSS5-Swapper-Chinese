@@ -6,8 +6,22 @@ Copyright (c) 2026 hezhixin15
 Based on DLSS 5 Swapper by Rakan Alkhaldi, released under the MIT License.
 See https://github.com/rakanki911/DLSS5-Swapper
 
-TERMS OF USE
-------------
+SCOPE OF LICENSE
+----------------
+
+This Software consists of two parts, each governed by its own license:
+
+1. The original DLSS 5 Swapper code (by Rakan Alkhaldi):
+   It remains licensed under the MIT License. Anyone may use, copy, modify,
+   and distribute this part under the MIT terms, including for commercial
+   purposes, provided that the original copyright notice is preserved.
+
+2. The code added or modified by the Chinese enhanced edition
+   (by hezhixin15):
+   It is governed by the following custom non-commercial terms.
+
+TERMS OF USE (applying to the code in part 2)
+---------------------------------------------
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
