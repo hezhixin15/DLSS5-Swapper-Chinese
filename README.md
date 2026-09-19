@@ -35,7 +35,7 @@
 
 - [hezhixin15](https://github.com/hezhixin15) — 项目作者与维护者
 - [Rakan Alkhaldi](https://github.com/rakanki911) — 原作者
-- AI 辅助（Trae）— 参与部分代码逻辑与功能实现
+- AI参与部分代码逻辑与功能实现
 
 ## 致敬
 
