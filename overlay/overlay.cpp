@@ -92,7 +92,8 @@ class connection {
         if (incoming.size() + count > max_frame + 65536) { disconnect(); return false; }
         incoming.insert(incoming.end(), read_buffer.begin(), read_buffer.begin() + count);
         while (incoming.size() >= 24) {
-            uint32_t h[6]; memcpy(h, incoming.data(), 24);
+            if (incoming.size() < sizeof(uint32_t) * 6) { disconnect(); return false; }
+            uint32_t h[6]; memcpy(h, incoming.data(), sizeof(h));
             if (h[0] == 0x31484c44 && h[1] == 1 && (h[2] == 1 || h[2] == 3 || h[2] == 7 || h[2] == 15) && !h[3] && !h[4] && !h[5]) {
                 live_peer = true; nr_peer = h[2] >= 7; feed_peer = h[2] == 15;
                 incoming.erase(incoming.begin(), incoming.begin() + 24); continue;
