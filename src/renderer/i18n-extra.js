@@ -43,6 +43,7 @@ add({ code: 'zh-TW', label: 'Chinese (Traditional)', native: '繁體中文', dir
   aboutOriginal: '原始專案', aboutZh: '中文增強版',
   aboutLicense: '本中文增強版依個人授權條款發布：不可用於商業用途，且必須標註中文增強版作者 hezhixin15。',
   setUpdateCheck: '啟動時自動偵測更新', setUpdateCheckHint: '每次啟動向 GitHub 查詢一次新版本。關閉後程式不再連網偵測。',
+  setReopenTutorial: '新手教學', setReopenTutorialHint: '重新看一遍首次啟動時的使用指南。', setReopenTutorialBtn: '重新查看',
   feedVkLayerReady: (rel) => `Vulkan 互通層已安裝。如果遊戲內未出現 DLSS 5，請透過 ${rel} 啟動遊戲。`,
   neuralModelKept: (rel) => `已保留你現有的 ${rel}；未以內建模型覆蓋它。`,
   setHidden: '已隱藏的遊戲', setHiddenNone: '目前沒有隱藏的遊戲。', setUnhide: '重新顯示',

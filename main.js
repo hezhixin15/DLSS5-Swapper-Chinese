@@ -477,6 +477,9 @@ ipcMain.handle('boot', () => {
     })(),
     theme: state.theme || 'light',
     lang: state.lang || 'en',
+    // 'pending' until the guide is either finished or skipped. Absent means
+    // pending, so every install that predates the guide sees it once.
+    tutorial: state.tutorial === 'skipped' || state.tutorial === 'done' ? state.tutorial : 'pending',
     groupGamesByStore: state.groupGamesByStore !== false,
     logo: asUrl('logo.png'),
     logoDark: asUrl('logo-dark.png')
@@ -923,6 +926,18 @@ ipcMain.handle('set-tray-labels', (_event, labels) => {
   return true;
 });
 
+// Two outcomes only, and neither is the default. The guide is left pending
+// whenever anything else arrives - a half-finished walkthrough, a window closed
+// mid-way, a bad value from the renderer - because showing it once too often is
+// a far smaller failure than hiding it from someone who never read it.
+ipcMain.handle('set-tutorial', (_event, outcome) => {
+  if (outcome !== 'skipped' && outcome !== 'done') return loadState().tutorial || 'pending';
+  const state = loadState();
+  state.tutorial = outcome;
+  saveState(state);
+  return state.tutorial;
+});
+
 ipcMain.handle('set-group-games-by-store', (_event, enabled) => {
   const state = loadState();
   state.groupGamesByStore = enabled === true;
@@ -1150,6 +1165,35 @@ ipcMain.handle('reset', () => {
   try { fs.unlinkSync(stateFile()); } catch {}
   return true;
 });
+
+// Settings' "clear cache" button. It takes no argument on purpose: the renderer
+// cannot name a path, so only the entries below can ever be deleted.
+const CACHE_ENTRIES = ['art', 'components', 'crash.log'];
+
+ipcMain.handle('clear-cache', () => exclusiveMutation(async () => {
+  const userData = app.getPath('userData');
+  const removed = [];
+  const failed = [];
+  for (const name of CACHE_ENTRIES) {
+    const target = path.join(userData, name);
+    try {
+      if (!fs.existsSync(target)) continue;
+      fs.rmSync(target, { recursive: true, force: true, maxRetries: 3, retryDelay: 120 });
+      removed.push(name);
+    } catch (err) {
+      // A file still open in the renderer, or one an antivirus is holding, is
+      // the ordinary case here: report it rather than failing the whole clear.
+      failed.push({ name, message: err.message });
+    }
+  }
+  // Both indexes describe exactly what was just deleted. Dropping the scan
+  // results is what makes every game scan itself again.
+  const state = loadState();
+  state.scans = {};
+  state.art = {};
+  saveState(state);
+  return { ok: true, removed, failed };
+}));
 
 ipcMain.handle('open', (_event, dir) => shell.openPath(dir));
 ipcMain.handle('open-project', async (_event, destination) => {
@@ -1383,7 +1427,10 @@ ipcMain.handle('community-palette-merge', (_event, palettes) =>
 
 // Bumped whenever the art picked for a game could change, so folders cached
 // under the old rule fetch again instead of keeping a bad banner forever.
-const ART_RULES = 4;
+// 5: the store's own header URL is now preferred over the hand-built path,
+// which 404s for apps whose art only exists under a content hash - so every
+// game cached as having no banner has to be looked at again.
+const ART_RULES = 5;
 
 // A community card is a game somebody else has, so there is no folder to key
 // its artwork by - but a card keyed "steam:<appid>" carries the appid itself,

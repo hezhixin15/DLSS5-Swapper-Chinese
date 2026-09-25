@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="overlay-lab.css" />
   <link rel="stylesheet" href="overlay-controls.css" />
   <link rel="stylesheet" href="chat.css" />
+  <link rel="stylesheet" href="tutorial.css" />
 </head>
 <body>
   <div class="shell">
@@ -375,6 +376,24 @@
   <div id="gameMenu" class="ctx-menu hidden" role="menu" aria-hidden="true"></div>
   <div id="copyFeedback" class="copy-feedback hidden" role="status" aria-live="polite"></div>
 
+  <!-- First-run guide. Shown once, in Chinese only; see tutorial-copy.js. -->
+  <div class="tutorial hidden" id="tutorial" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+    <div class="tutorial-card">
+      <div class="tutorial-head">
+        <span class="tutorial-step" id="tutorialStep"></span>
+        <div class="tutorial-dots" id="tutorialDots"></div>
+      </div>
+      <h2 id="tutorialTitle"></h2>
+      <div class="tutorial-body" id="tutorialBody"></div>
+      <div class="tutorial-actions">
+        <button class="tutorial-skip" id="tutorialSkip" type="button"></button>
+        <span class="tutorial-gap"></span>
+        <button class="ghost" id="tutorialBack" type="button"></button>
+        <button class="glass-btn" id="tutorialNext" type="button"></button>
+      </div>
+    </div>
+  </div>
+
   <script src="overlay-panel.js"></script>
   <script src="overlay-live.js"></script>
   <script src="overlay-gallery.js"></script>
@@ -389,6 +408,8 @@
   <script src="../shared/rendering-api.js"></script>
   <script src="community.js"></script>
   <script src="chat.js"></script>
+  <script src="tutorial-copy.js"></script>
+  <script src="tutorial.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

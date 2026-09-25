@@ -458,6 +458,10 @@ async function renderSettings() {
     <div class="set-row"><div><div class="k">${t('getLatest')}</div>
       <div class="v">${t('manualCheckHint')}</div></div>
       <button class="ghost sm" id="setCheckUpdate">${t('getLatest')}</button></div>
+    ${state.lang === 'zh' || state.lang === 'zh-TW' ? `
+    <div class="set-row"><div><div class="k">${t('setReopenTutorial')}</div>
+      <div class="v">${t('setReopenTutorialHint')}</div></div>
+      <button class="ghost sm" id="setReopenTutorial">${t('setReopenTutorialBtn')}</button></div>` : ''}
     <div class="set-row"><div><div class="k">${t('setRoots')}</div>${
         (info.roots || []).length
           ? `<div class="paths">${info.roots.map((f) => `
@@ -486,6 +490,9 @@ async function renderSettings() {
           : `<div class="v">${t('setHiddenNone')}</div>`}
       </div>
       <span class="d">${(info.hidden || []).length}</span></div>
+    <div class="set-row"><div><div class="k">${t('setClearCache')}</div>
+      <div class="v">${t('setClearCacheHint')}</div></div>
+      <button class="ghost sm" id="setClearCache">${t('setClearCacheBtn')}</button></div>
     <div class="set-row"><div><div class="k">${t('setLibrary')}</div><div class="v">${esc(info.stateFile)}</div></div>
       <button class="ghost sm" id="setReset">${t('setReset')}</button></div>
     <div class="set-row"><div><div class="k">${t('setPosters')}</div><div class="v">${esc(info.posterDir)}</div></div>
@@ -548,6 +555,10 @@ async function renderSettings() {
     }
   };
   $('setCheckUpdate').onclick = () => checkForUpdates({ manual: true });
+  // Only the two Chinese scripts carry guide copy, so the row exists for them
+  // alone rather than showing a button that would open nothing.
+  const reopenTutorial = $('setReopenTutorial');
+  if (reopenTutorial) reopenTutorial.onclick = () => window.tutorialUi.reopen(state.lang);
   $('setAddFolder').onclick = async () => { if (await window.lab.addFolder()) load(); };
   for (const b of $('settings').querySelectorAll('[data-unroot]')) {
     b.onclick = async () => {
@@ -578,6 +589,33 @@ async function renderSettings() {
       load();
     };
   }
+  // Deleting the cache throws away work the app did for the user, so it is
+  // asked about first, the way every other destructive action here is.
+  $('setClearCache').onclick = async () => {
+    const button = $('setClearCache');
+    if (!await ask({
+      icon: 'trash', title: t('setClearCache'),
+      body: t('clearCacheBody'), confirm: t('clearCacheConfirm'), cancel: t('cancel')
+    })) return;
+    button.disabled = true;
+    try {
+      const answer = await window.lab.clearCache();
+      if (!answer || answer.ok !== true) {
+        log(t(answer && answer.code === 'errJobBusy' ? 'errJobBusy' : 'clearCacheFailed'));
+        return;
+      }
+      log(answer.failed && answer.failed.length
+        ? t('clearCachePartial', answer.failed.length)
+        : t('clearCacheDone'));
+      // Every game lost its scan result, so this is what rescans them all.
+      await load();
+      await renderSettings();
+    } catch (error) {
+      log(error.message);
+    } finally {
+      button.disabled = false;
+    }
+  };
   $('setReset').onclick = async () => { await window.lab.reset(); load(); };
   await window.communityUi.renderProfile($('settings'));
 }
@@ -1232,6 +1270,7 @@ function applyLang(code) {
   if (view && view.id === 'view-community') window.communityUi.render();
   window.communityUi.applyLanguage();
   window.chatUi?.applyLanguage?.();
+  window.tutorialUi?.applyLanguage?.(state.lang);
   if (sheetGame) openSheet(sheetGame.dir, true);
 }
 
@@ -1585,6 +1624,9 @@ document.addEventListener('drop', (e) => e.preventDefault());
   state.groupGamesByStore = boot.groupGamesByStore !== false;
   document.documentElement.dataset.theme = state.theme;
   applyLang(boot.lang || 'en');
+  // After applyLang, so the guide is drawn in the language the app settled on
+  // rather than the raw code that came out of the state file.
+  window.tutorialUi.maybeShow(state.lang, boot.tutorial);
   $('statusVersion').textContent = `v${boot.version}`;
   // Nothing this app installs is on disk. Saying so now beats letting somebody
   // pick a game, choose a route and press Install before finding out (#220).

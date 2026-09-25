@@ -30,7 +30,8 @@ app.whenReady().then(async () => {
     if (level >= 3) { errors.push(message); console.error('[renderer]', message); }
   });
   await win.loadFile(path.join(__dirname, '../src/renderer/index.html'));
-  const run = (code) => win.webContents.executeJavaScript(code);
+  const run = (code) => win.webContents.executeJavaScript(code)
+    .catch((error) => { console.error('FAILED SCRIPT:', code); throw error; });
   await run(`new Promise(resolve => {
     const check = () => state.games.length === 9 && $('statusText').textContent === t('ready')
       ? resolve() : setTimeout(check, 10);
@@ -194,7 +195,7 @@ app.whenReady().then(async () => {
   const apiReady = () => run(`new Promise(resolve => { const check = () => $('apiChoice') && !$('apiChoice').disabled ? resolve() : setTimeout(check, 15); check(); })`);
   await apiReady();
   assert.equal(await run(`$('apiChoice').value`), 'auto');
-  assert.equal(await run(`$('apiChoice').options.length`), 8);
+  assert.equal(await run(`$('apiChoice').options.length`), 9);
   const beforeApi = await run(`window.lab.testInstallCalls().length`);
   for (const value of ['d3d9', 'd3d11', 'd3d12', 'vulkan', 'opengl', 'd3d10']) {
     await select('apiChoice', value);
@@ -231,12 +232,12 @@ app.whenReady().then(async () => {
   assert.equal(await run(`$('apiChoice').value`), 'auto', 'failed save does not claim the choice was saved');
   assert.equal(await run(`$('job').textContent.includes(t('errApiSave'))`), true);
   await run(`window.lab.testApiSaveFailure(false); window.lab.testDetectedApi({ api: 'dxgi', apiLabel: 'DirectX 12', bitness: 64 }); closeSheet(); applyLang('en'); show('about')`);
-  for (const value of ['github', 'releases']) await run(`document.querySelector('[data-project="${value}"]').click()`);
-  assert.deepEqual(await run(`window.lab.testProjectLinks()`), ['github', 'releases']);
+  for (const value of ['github', 'zhGithub']) await run(`document.querySelector('[data-project="${value}"]').click()`);
+  assert.deepEqual(await run(`window.lab.testProjectLinks()`), ['github', 'zhGithub']);
   assert.equal(await run(`$('projectLinkError').classList.contains('hidden')`), true);
-  await run(`window.lab.testProjectLinkFailure(true); document.querySelector('[data-project="releases"]').click()`);
+  await run(`window.lab.testProjectLinkFailure(true); document.querySelector('[data-project="zhGithub"]').click()`);
   assert.equal(await run(`$('projectLinkError').classList.contains('hidden')`), false);
-  await run(`window.lab.testProjectLinkFailure(false); document.querySelector('[data-project="releases"]').click(); new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
+  await run(`window.lab.testProjectLinkFailure(false); document.querySelector('[data-project="zhGithub"]').click(); new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
   fs.writeFileSync(path.join(output, 'about-links-en.png'), (await win.webContents.capturePage()).toPNG());
 
   // The backend selector is opt-in: changing the control must not install.
@@ -364,64 +365,209 @@ app.whenReady().then(async () => {
   await run(`$('clearLog').click()`);
   assert.equal(await run(`$('copyLog').disabled`), true);
   // Right-click is delegated to current cards, including after filters/renders.
+  // The menu is drawn in the page rather than by the operating system, so the
+  // test opens it and clicks its own entry, and answers the app's own
+  // confirmation for the two entries that throw work away.
   await run(`window.lab.testCopyFailure(false); applyLang('en'); show('games'); state.recents = [{ dir: state.games[0].dir, at: Date.now() }]; renderRecent();`);
-  const menu = (selector, action) => run(`(async () => {
-    window.lab.testMenuAction(${JSON.stringify(action)});
+  const openMenu = (selector) => run(`(async () => {
     const card = document.querySelector(${JSON.stringify(selector)});
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 900, clientY: 650 });
-    card.querySelector('.title, .name')?.dispatchEvent(event);
+    card.dispatchEvent(event);
+    await new Promise(resolve => {
+      const check = () => document.querySelector('#gameMenu [data-menu]') ? resolve() : setTimeout(check, 10);
+      check();
+    });
+    const buttons = [...document.querySelectorAll('#gameMenu [data-menu]')];
+    return {
+      prevented: event.defaultPrevented,
+      name: document.querySelector('#gameMenu .ctx-name b').textContent,
+      labels: Object.fromEntries(buttons.map(button => [button.dataset.menu, button.textContent.trim()])),
+      disabled: buttons.filter(button => button.disabled).map(button => button.dataset.menu)
+    };
+  })()`);
+  const closeMenu = () => run(`(async () => {
+    document.querySelector('#gameMenu [data-menu]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     await new Promise(resolve => { const check = () => contextMenuOpen ? setTimeout(check, 10) : resolve(); check(); });
-    return event.defaultPrevented;
+  })()`);
+  const clickMenu = (action, answer = 'confirm') => run(`(async () => {
+    document.querySelector('#gameMenu [data-menu="${action}"]').click();
+    let answered = false;
+    await new Promise(resolve => {
+      const check = () => {
+        const dialog = document.querySelector('dialog.ask');
+        if (!answered && dialog && dialog.open) { answered = true; dialog.querySelector('[data-ask="${answer}"]').click(); }
+        if (!contextMenuOpen) return resolve();
+        setTimeout(check, 10);
+      };
+      check();
+    });
   })()`);
   const first = '#groups .card';
   const firstDir = await run(`document.querySelector('${first}').dataset.dir`);
   const recentDir = await run(`state.games[0].dir`);
   const readsBeforeMenu = await run(`window.lab.testLibraryReads()`);
-  assert.equal(await menu(first, 'copy'), true);
+  const firstMenu = await openMenu(first);
+  assert.equal(firstMenu.prevented, true);
+  assert.deepEqual(firstMenu.disabled, []);
+  await clickMenu('copy');
   assert.equal(await run(`window.lab.testCopiedText()`), firstDir);
   assert.equal(await run(`$('overlay').classList.contains('hidden')`), true, 'right-click does not open details by itself');
-  await menu(first, 'open');
+  await openMenu(first);
+  await clickMenu('open');
   assert.deepEqual(await run(`window.lab.testActionCalls().at(-1)`), { action: 'open', dir: firstDir });
-  await menu(first, 'scan');
+  await openMenu(first);
+  await clickMenu('scan');
   assert.deepEqual(await run(`window.lab.testActionCalls().at(-1)`), { action: 'scan', dir: firstDir });
   assert.equal(await run(`window.lab.testLibraryReads()`), readsBeforeMenu, 'rescan does not sweep the whole library');
-  await menu(first, 'poster');
+  await openMenu(first);
+  await clickMenu('poster');
   assert.equal(await run(`state.games.find(g => g.dir === ${JSON.stringify(firstDir)}).poster.custom`), true);
-  await menu(first, 'details');
+  await openMenu(first);
+  await clickMenu('details');
   assert.equal(await run(`sheetGame.dir`), firstDir);
   await run(`closeSheet(); show('home'); applyLang('ar')`);
-  await menu('#recents .rcard', 'copy');
+  const recentMenu = await openMenu('#recents .rcard');
+  assert.equal(recentMenu.name, await run(`state.games.find(g => g.dir === ${JSON.stringify(recentDir)}).name`));
+  assert.equal(recentMenu.labels.open, 'فتح مجلد اللعبة');
+  await clickMenu('copy');
   assert.equal(await run(`window.lab.testCopiedText()`), recentDir);
-  assert.equal(await run(`window.lab.testMenuCalls().at(-1).options.labels.open`), 'فتح مجلد اللعبة');
-  await run(`(async () => {
-    window.lab.testMenuAction(null);
+  const keyboardMenu = await run(`(async () => {
     const card = document.querySelector('#recents .rcard'); card.focus();
     card.dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true, cancelable: true }));
+    await new Promise(resolve => { const check = () => document.querySelector('#gameMenu [data-menu]') ? resolve() : setTimeout(check, 10); check(); });
+    const name = document.querySelector('#gameMenu .ctx-name b').textContent;
+    document.querySelector('#gameMenu [data-menu]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     await new Promise(resolve => { const check = () => contextMenuOpen ? setTimeout(check, 10) : resolve(); check(); });
+    return name;
   })()`);
-  assert.equal(await run(`window.lab.testMenuCalls().at(-1).dir`), recentDir);
+  assert.equal(keyboardMenu, await run(`state.games.find(g => g.dir === ${JSON.stringify(recentDir)}).name`));
   const restoresBefore = await run(`window.lab.testActionCalls().filter(c => c.action === 'restore').length`);
-  await menu('#recents .rcard', null);
+  await openMenu('#recents .rcard');
+  await closeMenu();
   assert.equal(await run(`window.lab.testActionCalls().filter(c => c.action === 'restore').length`), restoresBefore);
   await run(`jobRunning = true`);
-  await menu('#recents .rcard', 'restore'); // Defensive guard even for a forged return value.
-  assert.equal(await run(`window.lab.testMenuCalls().at(-1).options.busy`), true);
+  const busyMenu = await openMenu('#recents .rcard');
+  assert.equal(busyMenu.disabled.includes('restore'), true, 'a job in flight disables the entries that would fight it');
+  await run(`document.querySelector('#gameMenu [data-menu="restore"]').click()`);
+  await closeMenu();
   assert.equal(await run(`window.lab.testActionCalls().filter(c => c.action === 'restore').length`), restoresBefore);
   await run(`jobRunning = false`);
-  await menu('#recents .rcard', 'restore');
+  await openMenu('#recents .rcard');
+  await clickMenu('restore');
   assert.equal(await run(`window.lab.testActionCalls().filter(c => c.action === 'restore').length`), restoresBefore + 1);
   assert.equal(await run(`window.lab.testActionCalls().find(c => c.action === 'restore').dir`), recentDir);
   assert.match(await run(`$('job').textContent`), /originals restored/);
   assert.equal(await run(`window.lab.history().then(r => r.rows.at(-1).action)`), 'restore');
   await run(`closeSheet(); state.recents = [{ dir: state.games[0].dir, at: Date.now() }]; renderRecent();`);
-  await menu('#recents .rcard', 'hide');
+  await openMenu('#recents .rcard');
+  await clickMenu('hide');
   assert.equal(await run(`state.games.some(g => g.dir === ${JSON.stringify(recentDir)})`), false);
   assert.equal(await run(`document.querySelectorAll('#recents .rcard').length`), 0);
   assert.deepEqual(await run(`window.lab.testActionCalls().at(-1)`), { action: 'hide', dir: recentDir });
   await run(`new Promise(resolve => setTimeout(resolve, 450))`);
   assert.equal(await run(`$('overlay').classList.contains('hidden')`), true, 'a completed job must not reopen a dismissed sheet');
+  // Clearing the cache throws away work the app did for the user, so it is
+  // asked about first, and every scan result is gone afterwards, so the
+  // library has to be rescanned.
+  const askOpen = () => run(`new Promise(resolve => {
+    const check = () => document.querySelector('dialog.ask')?.open ? resolve() : setTimeout(check, 10);
+    check();
+  })`);
+  const askAnswer = (kind) => run(`document.querySelector('dialog.ask [data-ask="${kind}"]').click()`);
+  const askCopy = () => run(`({
+    title: document.querySelector('dialog.ask #askTitle').textContent,
+    body: document.querySelector('dialog.ask .ask-copy p').textContent,
+    confirm: document.querySelector('dialog.ask .ask-go').textContent,
+    cancel: document.querySelector('dialog.ask .ask-ghost').textContent
+  })`);
+  const cacheCalls = () => run(`window.lab.testClearCacheCalls()`);
+  const said = async (key, ...args) => {
+    const call = `t(${[key, ...args].map((value) => JSON.stringify(value)).join(', ')})`;
+    return run(`state.log.some(entry => entry.m === ${JSON.stringify(await run(call))})`);
+  };
+  // A hidden window still has to present the frame that is being captured,
+  // otherwise the file holds whatever was on screen before the change, and a
+  // modal dialog lives on a layer of its own that needs a frame of its own.
+  const shot = async (name) => {
+    await run(`new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))`);
+    await new Promise(resolve => setTimeout(resolve, 600));
+    await win.webContents.capturePage();
+    fs.writeFileSync(path.join(output, name), (await win.webContents.capturePage()).toPNG());
+  };
+
+  await run(`closeSheet(); applyLang('en'); show('settings'); renderSettings()`);
+  assert.equal(await run(`$('setClearCache').textContent`), await run(`t('setClearCacheBtn')`));
+  assert.equal(await run(`$('setClearCache').closest('.set-row').textContent.includes(${JSON.stringify(await run(`t('setClearCacheHint')`))})`), true);
+  assert.equal(await cacheCalls(), 0);
+  await run(`$('view-settings').scrollTop = $('view-settings').scrollHeight`);
+  await shot('settings-cache-en.png');
+
+  await run(`$('setClearCache').click()`);
+  await askOpen();
+  assert.deepEqual(await askCopy(), {
+    title: await run(`t('setClearCache')`),
+    body: await run(`t('clearCacheBody')`),
+    confirm: await run(`t('clearCacheConfirm')`),
+    cancel: await run(`t('cancel')`)
+  });
+  // Backing out of the question leaves the cache and the library alone.
+  const readsBeforeCancel = await run(`window.lab.testLibraryReads()`);
+  await askAnswer('cancel');
+  await run(`new Promise(resolve => setTimeout(resolve, 60))`);
+  assert.equal(await cacheCalls(), 0);
+  assert.equal(await run(`window.lab.testLibraryReads()`), readsBeforeCancel);
+  assert.equal(await run(`$('setClearCache').disabled`), false);
+
+  // Confirming clears once, says so, and rescans the library.
+  await run(`$('setClearCache').click()`);
+  await askOpen();
+  await askAnswer('confirm');
+  await run(`new Promise(resolve => setTimeout(resolve, 300))`);
+  assert.equal(await cacheCalls(), 1);
+  assert.equal(await said('clearCacheDone'), true);
+  assert.equal(await run(`window.lab.testLibraryReads()`), readsBeforeCancel + 1);
+  assert.equal(await run(`$('setClearCache').disabled`), false);
+
+  // A busy app reports it instead of pretending the cache was cleared.
+  await run(`window.lab.testClearCacheResult({ ok: false, code: 'errJobBusy' })`);
+  const readsBeforeBusy = await run(`window.lab.testLibraryReads()`);
+  await run(`$('setClearCache').click()`);
+  await askOpen();
+  await askAnswer('confirm');
+  await run(`new Promise(resolve => setTimeout(resolve, 150))`);
+  assert.equal(await cacheCalls(), 2);
+  assert.equal(await said('errJobBusy'), true);
+  assert.equal(await run(`window.lab.testLibraryReads()`), readsBeforeBusy, 'a refused clear does not rescan');
+
+  // Files another process still holds open are reported, not hidden.
+  await run(`window.lab.testClearCacheResult({ ok: true, removed: ['art'], failed: ['components', 'crash.log'] })`);
+  await run(`$('setClearCache').click()`);
+  await askOpen();
+  await askAnswer('confirm');
+  await run(`new Promise(resolve => setTimeout(resolve, 300))`);
+  assert.equal(await said('clearCachePartial', 2), true);
+
+  // The Chinese wording is the one the feature was specified with.
+  await run(`window.lab.testClearCacheResult(null); applyLang('zh')`);
+  await run(`new Promise(resolve => setTimeout(resolve, 60))`);
+  await run(`show('settings'); renderSettings()`);
+  assert.equal(await run(`$('setClearCache').textContent`), '清理');
+  await run(`$('setClearCache').click()`);
+  await askOpen();
+  assert.deepEqual(await askCopy(), {
+    title: '清理应用缓存',
+    body: '确认删除吗？删除之后相关的游戏会重新扫描，需要一些时间。',
+    confirm: '确认删除',
+    cancel: '取消'
+  });
+  await shot('settings-cache-zh.png');
+  await askAnswer('cancel');
+  await run(`new Promise(resolve => setTimeout(resolve, 60))`);
+  assert.equal(await cacheCalls(), 3);
+  await run(`applyLang('en'); show('settings'); renderSettings()`);
+
   assert.deepEqual(errors, []);
-  console.log('PASS: filters and warnings in all 38 languages; library grouping, optional backends, History/copy, context actions, keyboard access, restore guards and light/dark/RTL layouts.');
+  console.log('PASS: filters and warnings in all 38 languages; library grouping, optional backends, History/copy, context actions, keyboard access, restore guards, cache clearing and light/dark/RTL layouts.');
   console.log(`Screenshots: ${output}`);
   clearTimeout(timeout);
   win.destroy();

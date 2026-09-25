@@ -14,14 +14,20 @@ let historyRows = [];
 let historyFailure = false;
 let copiedText = null;
 let copyFailure = false;
-let nextMenuAction = null;
-let gameMenuCalls = [];
 let gameActionCalls = [];
 const apiOverrides = new Map();
 let detectedApi = { api: 'dxgi', apiLabel: 'DirectX 12', bitness: 64 };
 let apiSaveFailure = false;
 let projectLinkFailure = false;
 const projectLinks = [];
+let clearCacheCalls = 0;
+let clearCacheResult = null;
+let noticeSettings = true;
+// The guide covers the app while it is open, so the filters suite runs with it
+// already decided. The tutorial suite starts it pending instead.
+let tutorial = process.env.TUTORIAL_FIXTURE || 'done';
+const tutorialLang = process.env.TUTORIAL_FIXTURE_LANG || 'en';
+const tutorialCalls = [];
 const games = [
   ['Euro Truck Simulator', 'DirectX 12', '2.2.16', true],
   ['American Truck Simulator', 'DirectX 11', '310.8.0.0', false],
@@ -37,11 +43,18 @@ const games = [
 }));
 games.push({ name: 'No 3D executable', dir: 'C:\\FixtureGames\\no-3d', launcher: 'My folders', cached: { ok: false, reason: 'no-graphics-exe' } });
 contextBridge.exposeInMainWorld('lab', {
-  boot: async () => ({ lang: 'en', theme: 'light', version: 'test', groupGamesByStore }),
+  boot: async () => ({ lang: tutorialLang, theme: 'light', version: 'test', groupGamesByStore, tutorial }),
+  setTutorial: async (outcome) => { tutorial = outcome; tutorialCalls.push(outcome); return tutorial; },
+  testTutorialOutcome: () => tutorial,
+  testTutorialCalls: () => tutorialCalls,
   artStatus: async () => ({ available: false }),
   library: async () => { libraryReads++; return games; },
   settings: async () => ({ groupGamesByStore, folders: [], roots: [], stateFile: 'test', posterDir: 'test', posterCount: 0, autoScanDrives: false }),
   setGroupGamesByStore: async (enabled) => { groupGamesByStore = enabled; return enabled; },
+  communityNoticeSettings: async (on) => {
+    if (on !== undefined) noticeSettings = Boolean(on);
+    return { on: noticeSettings };
+  },
   testLibraryReads: () => libraryReads,
   recents: async () => [],
   history: async () => {
@@ -51,23 +64,17 @@ contextBridge.exposeInMainWorld('lab', {
   copyText: async text => { if (copyFailure) return false; copiedText = text; return true; },
   testCopiedText: () => copiedText,
   testCopyFailure: value => { copyFailure = value; },
-  gameMenu: async (dir, options) => {
-    gameMenuCalls.push({ dir, options });
-    const selected = nextMenuAction;
-    nextMenuAction = null;
-    return selected;
-  },
   communityProfile: async () => ({ name: 'Fixture', icon: 0, tag: 'test' }),
+  communityForGame: async () => ({ ok: false }),
   communitySaveProfile: async profile => ({ ok: true, profile: { ...profile, tag: 'test' } }),
   communityDeleteMe: async () => ({ ok: true, result: { reports: 0, replies: 0 } }),
   communityCards: async () => ({ ok: true, cards: [], total: 0 }),
   communityCard: async () => ({ ok: false, error: 'not_found' }),
   communityUpdates: async () => ({ ok: true, notModified: true }),
+  communityMyReports: async () => ({ ok: true, result: { reports: [] } }),
   communityPrefill: async dir => ({ ok: true, prefill: { title: 'Fixture game', game: { title: 'Fixture game', exe: 'Game.exe' }, route: 'feeder', api: 'dx12', gpu: 'Fixture GPU', driver: '1.0', cpu: 'Fixture CPU', os: 'win32 test', app: 'test', dir } }),
   communityReport: async () => ({ ok: true, result: { card: 'title:fixturegame', report: 1 } }),
   communityReaction: async () => ({ ok: true }),
-  testMenuAction: value => { nextMenuAction = value; },
-  testMenuCalls: () => gameMenuCalls,
   testActionCalls: () => gameActionCalls,
   open: async dir => { gameActionCalls.push({ action: 'open', dir }); return ''; },
   openProject: async value => { projectLinks.push(value); return !projectLinkFailure; },
@@ -78,6 +85,7 @@ contextBridge.exposeInMainWorld('lab', {
     apiOverrides.set(exe, value); return { ok: true };
   },
   testApiSaveFailure: value => { apiSaveFailure = value; },
+  optiscalerBuilds: async () => ({ builds: [], current: null }),
   testDetectedApi: value => { detectedApi = value; },
   setPoster: async dir => { gameActionCalls.push({ action: 'poster', dir }); return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>'; },
   hide: async dir => { gameActionCalls.push({ action: 'hide', dir }); return true; },
@@ -118,6 +126,13 @@ contextBridge.exposeInMainWorld('lab', {
   testInstallCalls: () => installCalls,
   testHoldInstall: () => { holdInstall = true; },
   testFinishInstall: () => { holdInstall = false; finishInstall?.(); },
+  clearCache: async () => {
+    clearCacheCalls++;
+    if (clearCacheResult) return clearCacheResult;
+    return { ok: true, removed: ['art', 'components', 'crash.log'], failed: [] };
+  },
+  testClearCacheCalls: () => clearCacheCalls,
+  testClearCacheResult: value => { clearCacheResult = value; },
   setLang: async () => {},
   setTheme: async () => {},
   onJob: () => {}

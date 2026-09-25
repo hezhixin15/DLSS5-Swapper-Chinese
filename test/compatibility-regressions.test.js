@@ -99,6 +99,32 @@ test('ARC Raiders and detected anti-cheat require per-attempt consent, not a har
   }
 });
 
+test('WARDOGS and modern Call of Duty need consent, the 2009 game does not', async t => {
+  const root = temp(t);
+  // RICOCHET keeps its kernel driver outside the game folder, so these titles
+  // are keyed on the executable name - the folder name is shared with games
+  // that carry no anti-cheat at all.
+  for (const exe of ['cod.exe', 'ModernWarfare.exe', 'BlackOpsColdWar.exe', 'Vanguard.exe']) {
+    const dir = path.join(root, 'Call of Duty');
+    const exePath = writePe(path.join(dir, exe));
+    assert.equal(compatibility.hasAntiCheat(dir, exePath), true, exe);
+    assert.throws(() => compatibility.assertAntiCheatConsent(dir, exePath, false), { code: 'errAntiCheatConsent' });
+    assert.doesNotThrow(() => compatibility.assertAntiCheatConsent(dir, exePath, true));
+  }
+  // The 2009 game shares most of that name but ships no kernel anti-cheat, so a
+  // ban warning there would be wrong.
+  const old = path.join(root, 'Call of Duty Modern Warfare 2');
+  const oldExe = writePe(path.join(old, 'iw4sp.exe'));
+  assert.equal(compatibility.hasAntiCheat(old, oldExe), false);
+  assert.doesNotThrow(() => compatibility.assertAntiCheatConsent(old, oldExe, false));
+  // WARDOGS runs Easy Anti-Cheat; the folder name backs up the file scan.
+  const wardogs = path.join(root, 'WARDOGS');
+  const wardogsExe = writePe(path.join(wardogs, 'WARDOGS.exe'));
+  assert.equal(compatibility.hasAntiCheat(wardogs, wardogsExe), true);
+  await assert.rejects(manager.install({ gameDir: wardogs, exePath: wardogsExe, route: 'native' }), { code: 'errAntiCheatConsent' });
+  assert.equal(fs.existsSync(core.backupRoot(wardogs)), false);
+});
+
 test('anti-cheat consent does not bypass independent mod-manager or file-conflict protection', async t => {
   const dir = temp(t);
   const exePath = writePe(path.join(dir, 'Stock Game/SkyrimSE.exe'));

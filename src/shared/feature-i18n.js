@@ -356,6 +356,319 @@ Object.assign(catalog, {
     antiCheatWarningTitle:'คำเตือน: พบระบบป้องกันโกง', antiCheatWarning:'เกมนี้ดูเหมือนใช้ระบบป้องกันโกง ReShade, Feeder หรือ OptiScaler อาจทำให้เกมล่ม เปิดไม่ได้ หรือบัญชีถูกแบน การติดตั้งเป็นทางเลือกและต้องยอมรับความเสี่ยงอย่างชัดเจน โปรแกรมจะไม่ปิดหรือหลบเลี่ยงระบบป้องกันโกง', errAntiCheatConsent:'พบระบบป้องกันโกง กดติดตั้งอีกครั้งเพื่ออ่านคำเตือนและตัดสินใจ', antiCheatRiskAccepted:'ยอมรับความเสี่ยงเฉพาะการติดตั้งครั้งนี้', errManagedModpack:'พบ Mod Organizer Stock Game / Root Builder เช่น LoreRim บล็อกการติดตั้งตรงเพื่อป้องกัน ENB/ReShade ขัดแย้ง ใช้ตัวจัดการม็อดแพ็ก ยังคืนไฟล์เดิมได้', errLoaderConflict:'ตัวโหลดกราฟิกหรือ ReShade ขัดแย้ง ไม่ได้เขียนทับ คืนค่า Swapper หรือจัดการ ENB/DXVK/ReShade ด้วยตัวติดตั้งเดิม ดูเส้นทางในบันทึก', errRuntimeArchitecture:'อ่าน DLSS เดิมไม่ได้หรือสถาปัตยกรรมต่างกัน ไม่ได้เขียนทับ โปรดคืนค่า/ซ่อมก่อน', restoreProfileWarning:'บันทึกการตั้งค่าเสริมไม่ได้ กำลังคืนไฟล์เดิมต่อ', errBackupInvalid:'สำรองไม่ครบ/ไม่ถูกต้อง คืนค่าไม่ครบ เก็บ _DLSS5_Backup ตรวจไฟล์ที่หายในบันทึกและซ่อมผ่านตัวเปิดเกม ไม่ลบไฟล์ที่ไม่รู้จัก', nativeEffectsHint:'DLSS ในตัวใช้ส่วนเสริม ไม่ใช่ .fx ไม่มีเอฟเฟกต์ไม่ได้แปลว่าล้มเหลว เปิด DLSS ในเกมและตรวจส่วนเสริม เก็บไฟล์ Streamline และการสร้างเฟรมไว้', backendHint:'เลือกแยกแต่ละเกม เปลี่ยนเมื่อกดใช้/ติดตั้งขณะปิดเกม เก็บการตั้งค่าแยกกัน', optiHint:'ตัวเลือกเสริม: ต้องมี RTX 50 ไดรเวอร์ 616.56+ และเกม 64 บิตที่เปิด DLSS ในตัว ระบบป้องกันโกงต้องยอมรับความเสี่ยง ดาวน์โหลดครั้งแรกราว 130 MB ไม่รับประกันความเข้ากันได้', optiDriverOld: 'ไดรเวอร์ NVIDIA เก่ากว่า 616.56 ไฟล์โมเดล neural rendering มาพร้อมกับแอปนี้ ดังนั้น OptiScaler มักยังทำงานได้ อัปเดตไดรเวอร์เฉพาะเมื่อโมเดลไม่เริ่มทำงานในเกม', optiCardOld: 'ไม่ใช่การ์ด Blackwell ({0}) ไฟล์โมเดล neural rendering ที่มาพร้อมกันเป็นของ NVIDIA เองและทำงานบน Blackwell ต้นทางระบุว่าสถาปัตยกรรมเก่ากว่านั้นต้องใช้ nvngx_dlssnr.dll ที่ดัดแปลง ซึ่งคุณจัดหาเองและวางไว้ข้างเกม ไฟล์ที่มีอยู่จะไม่ถูกเขียนทับ จะติดตั้งดูก็ได้ หรือใช้เส้นทาง ReShade หรือ Feeder แทน', optiBridgeHint:'DX11/Vulkan ใช้สะพาน DX12 พร้อมเอาต์พุต FSR ไม่ใช่ DLSS ในตัว ตั้งค่าอัตโนมัติ ให้เลือก DLSS ในเกมต่อไป', optiVulkanHint:'คืนไฟล์เดิมและการติดตั้ง ReShade Vulkan ส่วนกลางที่ใช้งานก่อนเปลี่ยน Vulkan จะไม่ปิดเลเยอร์ของเกมอื่นอัตโนมัติ', optiUnsupported:'เฉพาะเกม 64 บิต DX11/DX12/Vulkan ไม่ใช่ DX8/DX9, OpenGL หรืออีมูเลเตอร์', optiNeedsDlss:'ต้องใช้กระบวนการ DLSS เดิมของเกม ไม่พบ DLL เดิม DLL ที่คัดลอก/ฉีดเข้าไปไม่เพียงพอ', errOptiHardware:'ต้องมี RTX 50 และไดรเวอร์ NVIDIA 616.56 ขึ้นไป', errOptiDownload:'ดาวน์โหลด/ตรวจสอบส่วนประกอบทางการไม่สำเร็จ ตรวจการเชื่อมต่อ ระบบเดิมไม่เปลี่ยน', componentQuarantined: 'ดาวน์โหลดคอมโพเนนต์แล้วและตรงกับเช็คซัมอย่างเป็นทางการ แต่หายไปก่อนถูกใช้งาน - นี่คือการกักกันของโปรแกรมป้องกันไวรัส ไม่ใช่การเชื่อมต่อ อนุญาตไฟล์นี้หรือยกเว้นโฟลเดอร์ components ของแอป แล้วลองใหม่ เกมไม่ถูกเปลี่ยนแปลง', driverNeuralFault: 'จากการวัดต้นทาง ไดรเวอร์ 616.64 ขึ้นไป ({0}) ล้มเหลวภายในรันไทม์นิวรัลของ NVIDIA เองเมื่อใช้ส่วนเสริม RenoDX DLSS 5 ในทุกครั้งที่ประมวลผล ส่วน 616.56 เป็นรุ่นสุดท้ายที่เห็นว่าทำงานจบ ติดตั้งต่อได้ตามปกติ - หากไม่เห็นการประมวลผลนิวรัลในเกมเลย ให้ย้อนไดรเวอร์กลับ', rivalConsumerSetAside: 'มี {1} อยู่ข้างเกม: ตัวใช้งาน RenoDX DLSS ตัวที่สอง ทั้งสองทำงานพร้อมกันไม่ได้ - ไม่ว่าจะเลือกเส้นทางใด ReShade จะเก็บไว้ตัวเดียวและทิ้งอีกตัว ไฟล์ถูกย้ายไปยังข้อมูลสำรองแล้ว และการกู้คืนจะนำกลับมา', oldShaderCompiler: '{0} ในโฟลเดอร์เกมเป็นเวอร์ชัน {1} ซึ่งเก่ากว่า Windows 10 SDK และ Windows จะโหลดไฟล์นี้แทนสำเนาปัจจุบันใน System32 ขั้นตอนนิวรัลถูกคอมไพล์เป็น Shader Model 5.1 ซึ่งเวอร์ชันนี้สร้างไม่ได้ จึงเงียบ ๆ ไม่ทำอะไรเลยแม้จะยังรายงานว่าส่งเฟรมแล้ว การติดตั้งจะย้ายไฟล์นั้นไปยังข้อมูลสำรอง เพื่อให้เกมใช้สำเนาของ Windows และการกู้คืนจะนำกลับมา', errOptiPayload:'ไฟล์ OptiScaler ไม่ครบ ผิดสถาปัตยกรรม หรือตรวจสอบไม่ผ่าน', errGameRunning:'ปิดเกมและกระบวนการช่วยก่อนติดตั้ง เปลี่ยน หรือคืนค่า', errProcessCheck:'ยืนยันไม่ได้ว่าปิดเกมแล้ว เปิดแอปใหม่ ยังไม่เริ่มติดตั้ง', errJobBusy:'กำลังติดตั้งหรือคืนค่า โปรดรอ', errBackendRecovery:'การทำงานถูกขัดจังหวะ ปิดเกมและคืนไฟล์เดิม เก็บสำรองไว้', unsupportedRendererHint:'Feeder ไม่รองรับ DX10 ในตัว เลือก DX11 ถ้ามี ติดตั้งอัตโนมัติไม่ได้', legacyRendererHint:'DX8/9 ต้องใช้ dgVoodoo2 ทางการแปลงเป็น DX11 ปิด MSAA/SSAA หากไม่มีความลึก', runtimeRequiredHint:'ติดตั้ง/ซ่อม Microsoft Visual C++ ทางการ เกม 32 บิตต้องมีทั้ง x86 และ x64', xeniaUiHint:'การแก้ HUD ของ Xenia ยังทดลอง ไม่รับประกันทุก HUD หากยังมีปัญหา ส่งชื่อเกมและบันทึก ReShade/Feeder', emulatorDepthHint:'หากภาพผิด ให้เลือกบัฟเฟอร์ความลึกที่ถูกต้องใน ReShade', rXboxProtected:'แพ็กเกจ Xbox ถูกป้องกัน — ย้ายหรือติดตั้งใหม่ใน XboxGames', copyFailed:'คัดลอกไม่ได้ เลือกข้อความแล้วกด Ctrl+C หรือลองใหม่', historyLoadFailed:'โหลดประวัติไม่ได้ เปิดหน้านี้ใหม่', historySaveWarning:'อ่าน/บันทึกประวัติไม่ครบ คัดลอกรายการก่อนปิดและตรวจสิทธิ์โฟลเดอร์ข้อมูลแอป'
   }
 });
+// The Settings cache row. It lives here rather than only in the renderer
+// dictionary because clearing the cache is irreversible, so the confirmation
+// has to be readable in every language the UI ships - not just the ones the
+// base dictionary happens to cover.
+const cacheStrings = {
+  en: {
+    setClearCache: 'Clear app cache', setClearCacheHint: 'Deletes downloaded artwork, downloaded components and scan results. Custom posters, settings, history and sign-in are kept.',
+    setClearCacheBtn: 'Clear',
+    clearCacheBody: 'Delete the cache? Related games are rescanned afterwards, which takes a while.',
+    clearCacheConfirm: 'Delete', clearCacheDone: 'Cache cleared. Rescanning games…',
+    clearCachePartial: 'Cache cleared, but {0} item(s) were in use and left alone.',
+    clearCacheFailed: 'The cache could not be cleared.'
+  },
+  ar: {
+    setClearCache: 'مسح ذاكرة التخزين المؤقت للتطبيق', setClearCacheHint: 'يحذف الصور المنزّلة والمكوّنات المنزّلة ونتائج الفحص. تُحفظ الصور المخصّصة والإعدادات والسجل وتسجيل الدخول.',
+    setClearCacheBtn: 'مسح',
+    clearCacheBody: 'هل تريد الحذف؟ ستُفحص الألعاب المرتبطة من جديد بعد ذلك، وهذا يستغرق بعض الوقت.',
+    clearCacheConfirm: 'تأكيد الحذف', clearCacheDone: 'تم مسح الذاكرة المؤقتة. إعادة فحص الألعاب…',
+    clearCachePartial: 'تم مسح الذاكرة المؤقتة، لكن {0} عنصرًا كان قيد الاستخدام وتم تركه.',
+    clearCacheFailed: 'تعذّر مسح الذاكرة المؤقتة.'
+  },
+  zh: {
+    setClearCache: '清理应用缓存', setClearCacheHint: '删除已下载的图片缓存、组件与扫描结果；自定义封面、设置、历史与登录信息会保留。',
+    setClearCacheBtn: '清理',
+    clearCacheBody: '确认删除吗？删除之后相关的游戏会重新扫描，需要一些时间。',
+    clearCacheConfirm: '确认删除', clearCacheDone: '缓存已清理，正在重新扫描游戏…',
+    clearCachePartial: '缓存已清理，但有 {0} 项被占用未能删除。',
+    clearCacheFailed: '清理缓存失败。'
+  },
+  'zh-TW': {
+    setClearCache: '清理應用程式快取', setClearCacheHint: '刪除已下載的圖片快取、元件與掃描結果；自訂封面、設定、歷史與登入資訊會保留。',
+    setClearCacheBtn: '清理',
+    clearCacheBody: '確認刪除嗎？刪除之後相關的遊戲會重新掃描，需要一些時間。',
+    clearCacheConfirm: '確認刪除', clearCacheDone: '快取已清理，正在重新掃描遊戲…',
+    clearCachePartial: '快取已清理，但有 {0} 項被占用未能刪除。',
+    clearCacheFailed: '清理快取失敗。'
+  },
+  es: {
+    setClearCache: 'Borrar caché de la aplicación', setClearCacheHint: 'Elimina las carátulas descargadas, los componentes descargados y los resultados del análisis. Las carátulas personalizadas, los ajustes, el historial y la sesión se conservan.',
+    setClearCacheBtn: 'Borrar',
+    clearCacheBody: '¿Confirmas el borrado? Después se analizarán de nuevo los juegos relacionados, lo que tarda un rato.',
+    clearCacheConfirm: 'Confirmar borrado', clearCacheDone: 'Caché borrada. Analizando los juegos de nuevo…',
+    clearCachePartial: 'Caché borrada, pero {0} elemento(s) estaban en uso y no se eliminaron.',
+    clearCacheFailed: 'No se pudo borrar la caché.'
+  },
+  pt: {
+    setClearCache: 'Limpar cache do aplicativo', setClearCacheHint: 'Apaga as capas baixadas, os componentes baixados e os resultados da análise. Capas personalizadas, ajustes, histórico e login são mantidos.',
+    setClearCacheBtn: 'Limpar',
+    clearCacheBody: 'Confirmar a exclusão? Depois, os jogos relacionados serão analisados de novo, o que leva um tempo.',
+    clearCacheConfirm: 'Confirmar exclusão', clearCacheDone: 'Cache limpo. Analisando os jogos de novo…',
+    clearCachePartial: 'Cache limpo, mas {0} item(ns) estavam em uso e não foram apagados.',
+    clearCacheFailed: 'Não foi possível limpar o cache.'
+  },
+  ru: {
+    setClearCache: 'Очистить кэш приложения', setClearCacheHint: 'Удаляет загруженные обложки, загруженные компоненты и результаты сканирования. Свои обложки, настройки, история и вход сохраняются.',
+    setClearCacheBtn: 'Очистить',
+    clearCacheBody: 'Удалить кэш? После этого связанные игры будут просканированы заново — это займёт некоторое время.',
+    clearCacheConfirm: 'Удалить', clearCacheDone: 'Кэш очищен. Игры сканируются заново…',
+    clearCachePartial: 'Кэш очищен, но {0} объект(ов) использовались и не были удалены.',
+    clearCacheFailed: 'Не удалось очистить кэш.'
+  },
+  de: {
+    setClearCache: 'App-Cache leeren', setClearCacheHint: 'Löscht heruntergeladene Cover, heruntergeladene Komponenten und Scan-Ergebnisse. Eigene Cover, Einstellungen, Verlauf und Anmeldung bleiben erhalten.',
+    setClearCacheBtn: 'Leeren',
+    clearCacheBody: 'Löschen bestätigen? Danach werden die zugehörigen Spiele erneut gescannt, was etwas dauert.',
+    clearCacheConfirm: 'Löschen', clearCacheDone: 'Cache geleert. Spiele werden erneut gescannt…',
+    clearCachePartial: 'Cache geleert, aber {0} Element(e) waren in Benutzung und blieben erhalten.',
+    clearCacheFailed: 'Der Cache konnte nicht geleert werden.'
+  },
+  fr: {
+    setClearCache: 'Vider le cache de l’application', setClearCacheHint: 'Supprime les jaquettes téléchargées, les composants téléchargés et les résultats d’analyse. Vos jaquettes, les réglages, l’historique et la connexion sont conservés.',
+    setClearCacheBtn: 'Vider',
+    clearCacheBody: 'Confirmer la suppression ? Les jeux concernés seront ensuite analysés à nouveau, ce qui prend du temps.',
+    clearCacheConfirm: 'Confirmer', clearCacheDone: 'Cache vidé. Nouvelle analyse des jeux…',
+    clearCachePartial: 'Cache vidé, mais {0} élément(s) étaient utilisés et n’ont pas été supprimés.',
+    clearCacheFailed: 'Le cache n’a pas pu être vidé.'
+  },
+  ja: {
+    setClearCache: 'アプリのキャッシュを削除', setClearCacheHint: 'ダウンロードした画像、ダウンロードしたコンポーネント、スキャン結果を削除します。自分で設定した画像、設定、履歴、ログイン情報は残ります。',
+    setClearCacheBtn: '削除',
+    clearCacheBody: '削除しますか？削除後、関連するゲームは再スキャンされます。少し時間がかかります。',
+    clearCacheConfirm: '削除する', clearCacheDone: 'キャッシュを削除しました。ゲームを再スキャンしています…',
+    clearCachePartial: 'キャッシュを削除しましたが、{0} 件は使用中で削除できませんでした。',
+    clearCacheFailed: 'キャッシュを削除できませんでした。'
+  },
+  ko: {
+    setClearCache: '앱 캐시 정리', setClearCacheHint: '내려받은 이미지, 내려받은 구성 요소, 검사 결과를 삭제합니다. 직접 지정한 이미지, 설정, 기록, 로그인 정보는 유지됩니다.',
+    setClearCacheBtn: '정리',
+    clearCacheBody: '삭제할까요? 삭제 후 관련 게임을 다시 검사하며, 시간이 조금 걸립니다.',
+    clearCacheConfirm: '삭제', clearCacheDone: '캐시를 정리했습니다. 게임을 다시 검사하는 중…',
+    clearCachePartial: '캐시를 정리했지만 {0}개 항목은 사용 중이라 삭제하지 못했습니다.',
+    clearCacheFailed: '캐시를 정리하지 못했습니다.'
+  },
+  it: {
+    setClearCache: 'Svuota la cache dell’app', setClearCacheHint: 'Elimina le copertine scaricate, i componenti scaricati e i risultati della scansione. Copertine personalizzate, impostazioni, cronologia e accesso restano.',
+    setClearCacheBtn: 'Svuota',
+    clearCacheBody: 'Confermi l’eliminazione? Dopo, i giochi collegati verranno analizzati di nuovo, il che richiede tempo.',
+    clearCacheConfirm: 'Elimina', clearCacheDone: 'Cache svuotata. Nuova analisi dei giochi…',
+    clearCachePartial: 'Cache svuotata, ma {0} elemento/i erano in uso e non sono stati eliminati.',
+    clearCacheFailed: 'Non è stato possibile svuotare la cache.'
+  },
+  tr: {
+    setClearCache: 'Uygulama önbelleğini temizle', setClearCacheHint: 'İndirilen görselleri, indirilen bileşenleri ve tarama sonuçlarını siler. Kendi seçtiğiniz görseller, ayarlar, geçmiş ve oturum korunur.',
+    setClearCacheBtn: 'Temizle',
+    clearCacheBody: 'Silmeyi onaylıyor musunuz? Silme sonrası ilgili oyunlar yeniden taranır; bu biraz sürer.',
+    clearCacheConfirm: 'Silmeyi onayla', clearCacheDone: 'Önbellek temizlendi. Oyunlar yeniden taranıyor…',
+    clearCachePartial: 'Önbellek temizlendi, ancak {0} öğe kullanımdaydı ve silinmedi.',
+    clearCacheFailed: 'Önbellek temizlenemedi.'
+  },
+  pl: {
+    setClearCache: 'Wyczyść pamięć podręczną aplikacji', setClearCacheHint: 'Usuwa pobrane okładki, pobrane komponenty i wyniki skanowania. Własne okładki, ustawienia, historia i logowanie zostają.',
+    setClearCacheBtn: 'Wyczyść',
+    clearCacheBody: 'Potwierdzić usunięcie? Powiązane gry zostaną potem przeskanowane ponownie, co zajmuje trochę czasu.',
+    clearCacheConfirm: 'Potwierdź usunięcie', clearCacheDone: 'Pamięć podręczna wyczyszczona. Ponowne skanowanie gier…',
+    clearCachePartial: 'Pamięć podręczna wyczyszczona, ale {0} element(ów) było w użyciu i nie zostało usuniętych.',
+    clearCacheFailed: 'Nie udało się wyczyścić pamięci podręcznej.'
+  },
+  uk: {
+    setClearCache: 'Очистити кеш застосунку', setClearCacheHint: 'Видаляє завантажені обкладинки, завантажені компоненти та результати сканування. Власні обкладинки, налаштування, історія та вхід зберігаються.',
+    setClearCacheBtn: 'Очистити',
+    clearCacheBody: 'Підтвердити видалення? Після цього пов’язані ігри буде проскановано заново — це триває певний час.',
+    clearCacheConfirm: 'Підтвердити видалення', clearCacheDone: 'Кеш очищено. Ігри скануються заново…',
+    clearCachePartial: 'Кеш очищено, але {0} об’єкт(ів) використовувалися й не були видалені.',
+    clearCacheFailed: 'Не вдалося очистити кеш.'
+  },
+  nl: {
+    setClearCache: 'App-cache wissen', setClearCacheHint: 'Verwijdert gedownloade hoezen, gedownloade onderdelen en scanresultaten. Eigen hoezen, instellingen, geschiedenis en aanmelding blijven bewaard.',
+    setClearCacheBtn: 'Wissen',
+    clearCacheBody: 'Verwijderen bevestigen? Daarna worden de bijbehorende spellen opnieuw gescand, wat even duurt.',
+    clearCacheConfirm: 'Verwijderen', clearCacheDone: 'Cache gewist. Spellen worden opnieuw gescand…',
+    clearCachePartial: 'Cache gewist, maar {0} item(s) waren in gebruik en zijn blijven staan.',
+    clearCacheFailed: 'De cache kon niet worden gewist.'
+  },
+  cs: {
+    setClearCache: 'Vymazat mezipaměť aplikace', setClearCacheHint: 'Odstraní stažené obrázky, stažené komponenty a výsledky skenování. Vlastní obrázky, nastavení, historie a přihlášení zůstávají.',
+    setClearCacheBtn: 'Vymazat',
+    clearCacheBody: 'Potvrdit smazání? Související hry se poté znovu prohledají, což chvíli trvá.',
+    clearCacheConfirm: 'Potvrdit smazání', clearCacheDone: 'Mezipaměť vymazána. Hry se znovu prohledávají…',
+    clearCachePartial: 'Mezipaměť vymazána, ale {0} položek se používalo a nebylo odstraněno.',
+    clearCacheFailed: 'Mezipaměť se nepodařilo vymazat.'
+  },
+  sk: {
+    setClearCache: 'Vymazať vyrovnávaciu pamäť aplikácie', setClearCacheHint: 'Odstráni stiahnuté obrázky, stiahnuté komponenty a výsledky skenovania. Vlastné obrázky, nastavenia, história a prihlásenie zostávajú.',
+    setClearCacheBtn: 'Vymazať',
+    clearCacheBody: 'Potvrdiť vymazanie? Súvisiace hry sa potom znova preskenujú, čo chvíľu trvá.',
+    clearCacheConfirm: 'Potvrdiť vymazanie', clearCacheDone: 'Vyrovnávacia pamäť vymazaná. Hry sa znova skenujú…',
+    clearCachePartial: 'Vyrovnávacia pamäť vymazaná, ale {0} položiek sa používalo a nebolo odstránených.',
+    clearCacheFailed: 'Vyrovnávaciu pamäť sa nepodarilo vymazať.'
+  },
+  hu: {
+    setClearCache: 'Alkalmazás gyorsítótárának törlése', setClearCacheHint: 'Törli a letöltött borítókat, a letöltött összetevőket és a vizsgálati eredményeket. A saját borítók, a beállítások, az előzmények és a bejelentkezés megmaradnak.',
+    setClearCacheBtn: 'Törlés',
+    clearCacheBody: 'Törlöd a gyorsítótárat? Utána a kapcsolódó játékok újra beolvasásra kerülnek, ami eltart egy ideig.',
+    clearCacheConfirm: 'Törlés megerősítése', clearCacheDone: 'Gyorsítótár törölve. Játékok újraolvasása…',
+    clearCachePartial: 'Gyorsítótár törölve, de {0} elem használatban volt, ezért megmaradt.',
+    clearCacheFailed: 'A gyorsítótárat nem sikerült törölni.'
+  },
+  ro: {
+    setClearCache: 'Golește memoria cache a aplicației', setClearCacheHint: 'Șterge copertele descărcate, componentele descărcate și rezultatele scanării. Copertele proprii, setările, istoricul și autentificarea rămân.',
+    setClearCacheBtn: 'Golește',
+    clearCacheBody: 'Confirmi ștergerea? Jocurile asociate vor fi scanate din nou, ceea ce durează ceva timp.',
+    clearCacheConfirm: 'Confirmă ștergerea', clearCacheDone: 'Memoria cache a fost golită. Se rescanau jocurile…',
+    clearCachePartial: 'Memoria cache a fost golită, dar {0} element(e) erau în uz și nu au fost șterse.',
+    clearCacheFailed: 'Memoria cache nu a putut fi golită.'
+  },
+  el: {
+    setClearCache: 'Εκκαθάριση προσωρινής μνήμης εφαρμογής', setClearCacheHint: 'Διαγράφει τα ληφθέντα εξώφυλλα, τα ληφθέντα στοιχεία και τα αποτελέσματα σάρωσης. Τα δικά σας εξώφυλλα, οι ρυθμίσεις, το ιστορικό και η σύνδεση διατηρούνται.',
+    setClearCacheBtn: 'Εκκαθάριση',
+    clearCacheBody: 'Να διαγραφεί η προσωρινή μνήμη; Έπειτα τα σχετικά παιχνίδια σαρώνονται ξανά, κάτι που παίρνει χρόνο.',
+    clearCacheConfirm: 'Επιβεβαίωση διαγραφής', clearCacheDone: 'Η προσωρινή μνήμη εκκαθαρίστηκε. Νέα σάρωση παιχνιδιών…',
+    clearCachePartial: 'Η προσωρινή μνήμη εκκαθαρίστηκε, αλλά {0} στοιχεία ήταν σε χρήση και δεν διαγράφηκαν.',
+    clearCacheFailed: 'Δεν ήταν δυνατή η εκκαθάριση της προσωρινής μνήμης.'
+  },
+  sv: {
+    setClearCache: 'Rensa appens cache', setClearCacheHint: 'Tar bort nedladdade omslag, nedladdade komponenter och skanningsresultat. Egna omslag, inställningar, historik och inloggning behålls.',
+    setClearCacheBtn: 'Rensa',
+    clearCacheBody: 'Bekräfta borttagning? Spelen kopplade till cachen skannas sedan om, vilket tar en stund.',
+    clearCacheConfirm: 'Ta bort', clearCacheDone: 'Cachen rensad. Spelen skannas om…',
+    clearCachePartial: 'Cachen rensad, men {0} objekt användes och lämnades kvar.',
+    clearCacheFailed: 'Cachen kunde inte rensas.'
+  },
+  da: {
+    setClearCache: 'Ryd appens cache', setClearCacheHint: 'Sletter downloadede covers, downloadede komponenter og scanningsresultater. Egne covers, indstillinger, historik og login bevares.',
+    setClearCacheBtn: 'Ryd',
+    clearCacheBody: 'Bekræft sletning? De tilknyttede spil scannes derefter igen, hvilket tager et stykke tid.',
+    clearCacheConfirm: 'Slet', clearCacheDone: 'Cachen er ryddet. Spillene scannes igen…',
+    clearCachePartial: 'Cachen er ryddet, men {0} element(er) var i brug og blev ikke slettet.',
+    clearCacheFailed: 'Cachen kunne ikke ryddes.'
+  },
+  nb: {
+    setClearCache: 'Tøm hurtiglageret til appen', setClearCacheHint: 'Sletter nedlastede omslag, nedlastede komponenter og skanneresultater. Egne omslag, innstillinger, historikk og pålogging beholdes.',
+    setClearCacheBtn: 'Tøm',
+    clearCacheBody: 'Bekrefte sletting? Spillene knyttet til lageret skannes på nytt etterpå, noe som tar litt tid.',
+    clearCacheConfirm: 'Slett', clearCacheDone: 'Hurtiglageret er tømt. Skanner spillene på nytt…',
+    clearCachePartial: 'Hurtiglageret er tømt, men {0} element(er) var i bruk og ble stående.',
+    clearCacheFailed: 'Hurtiglageret kunne ikke tømmes.'
+  },
+  fi: {
+    setClearCache: 'Tyhjennä sovelluksen välimuisti', setClearCacheHint: 'Poistaa ladatut kannet, ladatut komponentit ja skannaustulokset. Omat kannet, asetukset, historia ja kirjautuminen säilyvät.',
+    setClearCacheBtn: 'Tyhjennä',
+    clearCacheBody: 'Vahvistetaanko poisto? Sen jälkeen liittyvät pelit skannataan uudelleen, mikä kestää hetken.',
+    clearCacheConfirm: 'Vahvista poisto', clearCacheDone: 'Välimuisti tyhjennetty. Skannataan pelejä uudelleen…',
+    clearCachePartial: 'Välimuisti tyhjennetty, mutta {0} kohdetta oli käytössä eikä niitä poistettu.',
+    clearCacheFailed: 'Välimuistia ei voitu tyhjentää.'
+  },
+  th: {
+    setClearCache: 'ล้างแคชของแอป', setClearCacheHint: 'ลบภาพที่ดาวน์โหลดไว้ คอมโพเนนต์ที่ดาวน์โหลดไว้ และผลการสแกน ปกเกมที่คุณตั้งเอง การตั้งค่า ประวัติ และการเข้าสู่ระบบจะยังอยู่',
+    setClearCacheBtn: 'ล้าง',
+    clearCacheBody: 'ยืนยันการลบหรือไม่ หลังลบแล้วเกมที่เกี่ยวข้องจะถูกสแกนใหม่ ซึ่งใช้เวลาสักครู่',
+    clearCacheConfirm: 'ยืนยันการลบ', clearCacheDone: 'ล้างแคชแล้ว กำลังสแกนเกมใหม่…',
+    clearCachePartial: 'ล้างแคชแล้ว แต่มี {0} รายการที่ถูกใช้งานอยู่จึงไม่ได้ลบ',
+    clearCacheFailed: 'ล้างแคชไม่สำเร็จ'
+  },
+  vi: {
+    setClearCache: 'Xóa bộ nhớ đệm của ứng dụng', setClearCacheHint: 'Xóa ảnh bìa đã tải, thành phần đã tải và kết quả quét. Ảnh bìa tự chọn, cài đặt, lịch sử và đăng nhập được giữ lại.',
+    setClearCacheBtn: 'Xóa',
+    clearCacheBody: 'Xác nhận xóa? Sau đó các game liên quan sẽ được quét lại, việc này mất một lúc.',
+    clearCacheConfirm: 'Xác nhận xóa', clearCacheDone: 'Đã xóa bộ nhớ đệm. Đang quét lại game…',
+    clearCachePartial: 'Đã xóa bộ nhớ đệm, nhưng {0} mục đang được dùng nên được giữ lại.',
+    clearCacheFailed: 'Không xóa được bộ nhớ đệm.'
+  },
+  id: {
+    setClearCache: 'Bersihkan cache aplikasi', setClearCacheHint: 'Menghapus sampul yang diunduh, komponen yang diunduh, dan hasil pemindaian. Sampul pilihan Anda, pengaturan, riwayat, dan sesi masuk tetap disimpan.',
+    setClearCacheBtn: 'Bersihkan',
+    clearCacheBody: 'Konfirmasi penghapusan? Setelah itu game terkait akan dipindai ulang, yang memerlukan waktu.',
+    clearCacheConfirm: 'Konfirmasi hapus', clearCacheDone: 'Cache dibersihkan. Memindai ulang game…',
+    clearCachePartial: 'Cache dibersihkan, tetapi {0} item sedang dipakai dan tidak dihapus.',
+    clearCacheFailed: 'Cache tidak dapat dibersihkan.'
+  },
+  ms: {
+    setClearCache: 'Kosongkan cache aplikasi', setClearCacheHint: 'Memadam kulit yang dimuat turun, komponen yang dimuat turun dan hasil imbasan. Kulit pilihan anda, tetapan, sejarah dan log masuk dikekalkan.',
+    setClearCacheBtn: 'Kosongkan',
+    clearCacheBody: 'Sahkan pemadaman? Selepas itu permainan berkaitan akan diimbas semula, yang mengambil sedikit masa.',
+    clearCacheConfirm: 'Sahkan padam', clearCacheDone: 'Cache dikosongkan. Mengimbas semula permainan…',
+    clearCachePartial: 'Cache dikosongkan, tetapi {0} item sedang digunakan dan tidak dipadam.',
+    clearCacheFailed: 'Cache tidak dapat dikosongkan.'
+  },
+  fil: {
+    setClearCache: 'I-clear ang cache ng app', setClearCacheHint: 'Binubura ang mga na-download na cover, na-download na component, at resulta ng scan. Mananatili ang sariling cover, settings, history, at pag-sign in.',
+    setClearCacheBtn: 'I-clear',
+    clearCacheBody: 'Kumpirmahin ang pagbura? Susunod na i-scan muli ang kaugnay na mga laro, na tumatagal nang kaunti.',
+    clearCacheConfirm: 'Kumpirmahin ang pagbura', clearCacheDone: 'Na-clear ang cache. Sinusuri muli ang mga laro…',
+    clearCachePartial: 'Na-clear ang cache, pero {0} item ang ginagamit at hindi binura.',
+    clearCacheFailed: 'Hindi na-clear ang cache.'
+  },
+  hi: {
+    setClearCache: 'ऐप कैश साफ़ करें', setClearCacheHint: 'डाउनलोड किए गए कवर, डाउनलोड किए गए घटक और स्कैन परिणाम हटाता है। अपने चुने कवर, सेटिंग, इतिहास और साइन-इन सुरक्षित रहते हैं।',
+    setClearCacheBtn: 'साफ़ करें',
+    clearCacheBody: 'हटाने की पुष्टि करें? इसके बाद संबंधित गेम फिर से स्कैन होंगे, जिसमें कुछ समय लगेगा।',
+    clearCacheConfirm: 'हटाने की पुष्टि करें', clearCacheDone: 'कैश साफ़ हो गया। गेम फिर से स्कैन हो रहे हैं…',
+    clearCachePartial: 'कैश साफ़ हो गया, लेकिन {0} आइटम उपयोग में थे और हटाए नहीं गए।',
+    clearCacheFailed: 'कैश साफ़ नहीं हो सका।'
+  },
+  bn: {
+    setClearCache: 'অ্যাপ ক্যাশে মুছুন', setClearCacheHint: 'ডাউনলোড করা কভার, ডাউনলোড করা কম্পোনেন্ট ও স্ক্যান ফলাফল মুছে ফেলে। নিজের বাছাই করা কভার, সেটিংস, ইতিহাস ও সাইন-ইন থেকে যায়।',
+    setClearCacheBtn: 'মুছুন',
+    clearCacheBody: 'মুছে ফেলার বিষয়টি নিশ্চিত করবেন? এরপর সংশ্লিষ্ট গেমগুলি আবার স্ক্যান করা হবে, যাতে কিছুটা সময় লাগবে।',
+    clearCacheConfirm: 'মুছে ফেলার বিষয়টি নিশ্চিত করুন', clearCacheDone: 'ক্যাশে মুছে ফেলা হয়েছে। গেমগুলি আবার স্ক্যান করা হচ্ছে…',
+    clearCachePartial: 'ক্যাশে মুছে ফেলা হয়েছে, তবে {0}টি আইটেম ব্যবহৃত হওয়ায় মুছতে পারিনি।',
+    clearCacheFailed: 'ক্যাশে মোছা যায়নি।'
+  },
+  fa: {
+    setClearCache: 'پاک کردن حافظهٔ نهان برنامه', setClearCacheHint: 'تصاویر دانلودشده، مؤلفه‌های دانلودشده و نتایج بررسی را حذف می‌کند. تصاویر انتخابی خودتان، تنظیمات، تاریخچه و ورود باقی می‌مانند.',
+    setClearCacheBtn: 'پاک کردن',
+    clearCacheBody: 'حذف تأیید می‌شود؟ پس از آن بازی‌های مرتبط دوباره بررسی می‌شوند و این کمی زمان می‌برد.',
+    clearCacheConfirm: 'تأیید حذف', clearCacheDone: 'حافظهٔ نهان پاک شد. بررسی دوبارهٔ بازی‌ها…',
+    clearCachePartial: 'حافظهٔ نهان پاک شد، اما {0} مورد در حال استفاده بود و حذف نشد.',
+    clearCacheFailed: 'حافظهٔ نهان پاک نشد.'
+  },
+  ur: {
+    setClearCache: 'ایپ کیشے صاف کریں', setClearCacheHint: 'ڈاؤن لوڈ شدہ کور، ڈاؤن لوڈ شدہ اجزاء اور اسکین کے نتائج حذف کرتا ہے۔ آپ کے منتخب کردہ کور، سیٹنگز، تاریخ اور سائن اِن محفوظ رہتے ہیں۔',
+    setClearCacheBtn: 'صاف کریں',
+    clearCacheBody: 'حذف کرنے کی تصدیق کریں؟ اس کے بعد متعلقہ گیمز دوبارہ اسکین ہوں گے، جس میں کچھ وقت لگے گا۔',
+    clearCacheConfirm: 'حذف کی تصدیق کریں', clearCacheDone: 'کیشے صاف ہو گیا۔ گیمز دوبارہ اسکین ہو رہے ہیں…',
+    clearCachePartial: 'کیشے صاف ہو گیا، مگر {0} آئٹم استعمال میں تھے اور حذف نہیں ہوئے۔',
+    clearCacheFailed: 'کیشے صاف نہیں ہو سکا۔'
+  },
+  bg: {
+    setClearCache: 'Изчистване на кеша на приложението', setClearCacheHint: 'Изтрива изтеглените корици, изтеглените компоненти и резултатите от сканирането. Собствените корици, настройките, историята и входът се запазват.',
+    setClearCacheBtn: 'Изчисти',
+    clearCacheBody: 'Потвърждавате ли изтриването? След това свързаните игри ще бъдат сканирани отново, което отнема време.',
+    clearCacheConfirm: 'Потвърди изтриването', clearCacheDone: 'Кешът е изчистен. Игрите се сканират отново…',
+    clearCachePartial: 'Кешът е изчистен, но {0} елемента се използваха и не бяха изтрити.',
+    clearCacheFailed: 'Кешът не можа да бъде изчистен.'
+  },
+  sr: {
+    setClearCache: 'Очисти кеш апликације', setClearCacheHint: 'Брише преузете корице, преузете компоненте и резултате скенирања. Сопствене корице, подешавања, историја и пријава остају.',
+    setClearCacheBtn: 'Очисти',
+    clearCacheBody: 'Потврђујете брисање? Након тога повезане игре се поново скенирају, што траје неко време.',
+    clearCacheConfirm: 'Потврди брисање', clearCacheDone: 'Кеш је очишћен. Игре се поново скенирају…',
+    clearCachePartial: 'Кеш је очишћен, али {0} ставки су биле у употреби и нису обрисане.',
+    clearCacheFailed: 'Кеш није могао бити очишћен.'
+  },
+  hr: {
+    setClearCache: 'Očisti predmemoriju aplikacije', setClearCacheHint: 'Briše preuzete naslovnice, preuzete komponente i rezultate skeniranja. Vlastite naslovnice, postavke, povijest i prijava ostaju.',
+    setClearCacheBtn: 'Očisti',
+    clearCacheBody: 'Potvrditi brisanje? Nakon toga povezane igre ponovno se skeniraju, što traje neko vrijeme.',
+    clearCacheConfirm: 'Potvrdi brisanje', clearCacheDone: 'Predmemorija je očišćena. Ponovno skeniranje igara…',
+    clearCachePartial: 'Predmemorija je očišćena, ali {0} stavki bilo je u upotrebi i nije obrisano.',
+    clearCacheFailed: 'Predmemoriju nije bilo moguće očistiti.'
+  },
+  ca: {
+    setClearCache: 'Buida la memòria cau de l’aplicació', setClearCacheHint: 'Elimina les caràtules baixades, els components baixats i els resultats de l’anàlisi. Les caràtules personalitzades, els ajustos, l’historial i la sessió es conserven.',
+    setClearCacheBtn: 'Buida',
+    clearCacheBody: 'Confirmes l’eliminació? Després es tornaran a analitzar els jocs relacionats, cosa que triga una estona.',
+    clearCacheConfirm: 'Confirma l’eliminació', clearCacheDone: 'Memòria cau buidada. Tornant a analitzar els jocs…',
+    clearCachePartial: 'Memòria cau buidada, però {0} element(s) estaven en ús i no s’han eliminat.',
+    clearCacheFailed: 'No s’ha pogut buidar la memòria cau.'
+  }
+};
+// Assigned per language: Object.assign on the catalog itself would replace the
+// whole language object rather than add these keys to it.
+for (const [code, strings] of Object.entries(cacheStrings)) Object.assign(catalog[code], strings);
 // Keep manual-renderer controls and About actions available in all UI locales.
 const rendererStrings = {
   en: ['Automatic (detected: {0})', 'Match the renderer used by the game or wrapper. Saved per executable; game settings are not changed.', 'Vulkan uses a shared ReShade layer, not local proxy DLLs. Restore originals before switching APIs.', 'Latest releases', 'Invalid renderer or executable selection.', 'Could not save the renderer choice. Try again.', 'Could not open the link. Try again.'],

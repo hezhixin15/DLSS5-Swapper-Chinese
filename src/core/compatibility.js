@@ -25,9 +25,18 @@ function managedModRoot(gameDir, exePath) {
   }
   return null;
 }
+// Anti-cheat that scanning the game folder cannot find. RICOCHET keeps its
+// kernel driver outside it, so those titles are matched on the executable name
+// instead - folder names collide ("Call of Duty Modern Warfare" is the 2019
+// game, "Call of Duty Modern Warfare 2" the 2009 one, which has none).
+const RICOCHET_EXES = new Set(['cod.exe', 'modernwarfare.exe', 'blackopscoldwar.exe', 'vanguard.exe']);
+// Where the anti-cheat does live in the folder, or can sit deeper than the scan
+// reaches, the folder name is the stable key.
+const KNOWN_ANTI_CHEAT_DIRS = /(?:^|[\\/])(?:arc[ _-]?raiders|war[ _-]?dogs)(?:[\\/]|$)/i;
 function hasAntiCheat(gameDir, exePath) {
   const dirs = [gameDir, ...(exePath ? [path.dirname(exePath)] : [])];
-  return dirs.some(dir => /(?:^|[\\/])arc[ _-]?raiders(?:[\\/]|$)/i.test(dir)) ||
+  return RICOCHET_EXES.has(exePath ? path.basename(exePath).toLowerCase() : '') ||
+    dirs.some(dir => KNOWN_ANTI_CHEAT_DIRS.test(dir)) ||
     dirs.some(dir => guards.antiCheatPresent(dir));
 }
 function targetIssue(gameDir, exePath) {
