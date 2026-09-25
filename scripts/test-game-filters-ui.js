@@ -2,7 +2,7 @@
 
 // Run with npm run test:ui. The hidden window uses synthetic metadata and an
 // isolated profile; no real library, game files or network calls are involved.
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, nativeImage } = require('electron');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -319,6 +319,38 @@ app.whenReady().then(async () => {
   assert.match(await run(`window.lab.testCopiedText()`), /done - 1 replaced, 5 added/);
   assert.match(await run(`window.lab.testCopiedText()`), /FixtureGames/);
   assert.equal(await run(`getComputedStyle($('job')).userSelect`), 'text');
+
+  // A game too new for a portrait capsule ships only the wide banner - Steam
+  // publishes no library_600x900 for it at all, so the fetched record has a
+  // hero and no cover. The small cover has to letterbox that banner: cropping
+  // a logo that spans it down to a 2:3 slice would leave three letters of it,
+  // and two initials are worse than either.
+  const art = (width, height) => {
+    const bitmap = Buffer.alloc(width * height * 4);
+    for (let i = 0; i < bitmap.length; i += 4) {
+      bitmap[i] = 40; bitmap[i + 1] = 96; bitmap[i + 2] = 168; bitmap[i + 3] = 255;
+    }
+    return nativeImage.createFromBitmap(bitmap, { width, height }).toDataURL();
+  };
+  const banner = art(616, 353);
+  const coverBox = `$('sheet').querySelector('.head .cover')`;
+  await run(`window.lab.testArtFetch({ appid: 1867240, name: 'WARDOGS', released: 2025, genres: [], cover: null, hero: ${JSON.stringify(banner)} })`);
+  await run(`closeSheet(); applyLang('en'); openSheet(state.games[0].dir, true)`);
+  await sheetReady();
+  assert.equal(await run(`${coverBox}.classList.contains('wide')`), true);
+  assert.equal(await run(`${coverBox}.querySelectorAll('img').length`), 1);
+  assert.equal(await run(`${coverBox}.textContent.trim()`), '', 'art is shown instead of initials');
+  assert.equal(await run(`getComputedStyle(${coverBox}.querySelector('img')).objectFit`), 'contain');
+  assert.match(await run(`${coverBox}.getAttribute('style')`), /--bgimg:\s*url/);
+  await run(`new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
+  fs.writeFileSync(path.join(output, 'cover-wide-only-en.png'), (await win.webContents.capturePage()).toPNG());
+  // The control case: a real portrait capsule still fills the box.
+  await run(`window.lab.testArtFetch({ appid: 870780, name: 'CONTROL Ultimate Edition', released: 2019, genres: [], cover: ${JSON.stringify(art(600, 900))}, hero: ${JSON.stringify(banner)} })`);
+  await run(`closeSheet(); openSheet(state.games[0].dir, true)`);
+  await sheetReady();
+  assert.equal(await run(`${coverBox}.classList.contains('wide')`), false);
+  assert.equal(await run(`getComputedStyle(${coverBox}.querySelector('img')).objectFit`), 'cover');
+  await run(`window.lab.testArtFetch({ none: true })`);
   await run(`closeSheet(); applyLang('en'); show('history'); renderHistory()`);
   assert.equal(await run(`document.querySelectorAll('.hist-row').length`), 2, 'install updates History without reopening the app');
   await run(`$('copyHistory').onclick()`);

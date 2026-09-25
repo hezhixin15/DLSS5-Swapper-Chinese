@@ -7,6 +7,7 @@ let libraryReads = 0;
 let installedRoute = null;
 let installIssue = null;
 let antiCheatWarning = false;
+let artResult = { none: true };
 let installCalls = [];
 let holdInstall = false;
 let finishInstall = null;
@@ -105,7 +106,8 @@ contextBridge.exposeInMainWorld('lab', {
     optiscaler: installedRoute === 'optiscaler' ? { version: '0.1.1.5-dlssnr', installed: true } : null,
     reshade: { installed: installedRoute === 'native', version: '6.8.0', addonSupport: true }
   }),
-  artFetch: async () => ({ none: true }),
+  artFetch: async () => artResult,
+  testArtFetch: value => { artResult = value; },
   install: async (dir, exe, route, api) => {
     installCalls.push({ dir, exe, route, api });
     if (holdInstall) await new Promise(resolve => { finishInstall = resolve; });

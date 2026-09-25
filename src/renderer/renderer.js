@@ -1008,7 +1008,13 @@ async function openSheet(dir, keepLog = false) {
   if (!routeChoice.has(dir) && d.installedRoute) routeChoice.set(dir, d.installedRoute);
 
   const info = art && !art.error && !art.none ? art : null;
-  const cover = (info && info.cover) || (g.poster && g.poster.tall ? g.poster.url : null);
+  const tallArt = (info && info.cover) || (g.poster && g.poster.tall ? g.poster.url : null);
+  // A game too new for a portrait capsule ships only wide art - Steam has no
+  // library_600x900 for it at all. Showing that beats two initials, but it has
+  // to be letterboxed: cropping a logo that spans the whole banner would leave
+  // three letters of it. The grid already treats a wide poster this way.
+  const cover = tallArt || (info && info.hero) || (g.poster ? g.poster.url : null);
+  const coverWide = Boolean(cover) && !tallArt;
   const hero = (info && info.hero) || (g.poster && !g.poster.tall ? g.poster.url : null);
   const upToDate = Boolean(d.newDlss && d.currentDlss && d.currentDlss.version === d.newDlss);
   // With a picker on screen the executable already has its own row, so the
@@ -1026,7 +1032,7 @@ async function openSheet(dir, keepLog = false) {
     </div>
     <div class="sheet-body">
       <div class="head">
-        <div class="cover">${cover ? `<img src="${cover}" alt="">` : esc(initials(g.name))}</div>
+        <div class="cover${coverWide ? ' wide' : ''}"${coverWide ? ` style="--bgimg:url('${cover}')"` : ''}>${cover ? `<img src="${cover}" alt="">` : esc(initials(g.name))}</div>
         <div class="who">
           <h3>${esc(info ? info.name : g.name)}</h3>
           <div class="meta">${[g.launcher, info && info.released, info && info.genres && info.genres.join(', '),
