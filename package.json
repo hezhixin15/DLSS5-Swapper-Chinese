@@ -1,12 +1,13 @@
 {
   "name": "dlss5-swapper",
-  "version": "2.2.7",
+  "version": "1.0.2",
   "description": "DLSS 5 (Neural Rendering) for your games - a library that finds them, and one click to install",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "test:ui": "electron scripts/test-game-filters-ui.js",
+    "test:ui:tutorial": "electron scripts/test-tutorial-ui.js",
     "test:payload": "node scripts/test-feeder-payload.js",
     "test:optiscaler": "node scripts/test-optiscaler-payload.js",
     "payload": "node scripts/collect-payload.js",

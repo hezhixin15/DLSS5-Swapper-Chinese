@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="overlay-lab.css" />
   <link rel="stylesheet" href="overlay-controls.css" />
   <link rel="stylesheet" href="chat.css" />
+  <link rel="stylesheet" href="tutorial.css" />
 </head>
 <body>
   <div class="shell">
@@ -59,7 +60,6 @@
         <div class="status-line"><i class="live"></i><b id="statusText" data-i18n="ready">Ready</b></div>
         <p class="status-sub">DLSS 5 Swapper</p>
         <p class="status-sub" id="statusVersion"></p>
-        <a class="status-update hidden" id="statusUpdate" href="https://github.com/rakanki911/DLSS5-Swapper/releases/latest" data-project="releases"></a>
         <div class="bar"><i id="statusBar" style="width:22%"></i></div>
       </div>
     </aside>
@@ -226,7 +226,7 @@
       <!-- SETTINGS -->
       <section class="view" id="view-overlays" aria-label="Overlay">
         <div class="section-head">
-          <div><h3>Overlay <span class="ol-badge">BETA</span></h3><p class="hint" id="olSubtitle"></p></div>
+          <div><h3><span id="olSectionTitle">Overlay</span> <span class="ol-badge">BETA</span></h3><p class="hint" id="olSubtitle"></p></div>
           <div class="row ol-toolbar"><label class="ol-install-switch"><input type="checkbox" role="switch" id="olEnabled"><span id="olEnabledLabel">Install with DLSS</span></label><button class="ghost sm" id="olSource">Developer files</button><button class="ghost sm" id="olHotkey">Hotkey · F8</button><button class="ghost sm" id="olCustom">Create theme</button><button class="glass-btn sm" id="olAdd">＋ Add</button></div>
         </div>
         <p id="olStatus" role="status" aria-live="polite"></p>
@@ -245,7 +245,7 @@
           <p id="olCustomError" role="status"></p>
           <div class="row"><button id="olCustomCancel" class="ghost">Cancel</button><button id="olCustomSave" class="glass-btn">Save</button></div>
         </dialog>
-        <dialog id="olHotkeyDialog" class="ol-dialog ol-hotkey-dialog"><h3>Overlay hotkey</h3><p id="olKeyHelp">Click the field, then press your shortcut. Ctrl, Alt and Shift are supported. Home / Escape stay reserved for ReShade.</p><button id="olKeyCapture" class="ghost">F8</button><p id="olKeyError" role="status"></p><div class="row"><button id="olKeyCancel" class="ghost">Cancel</button><button id="olKeySave" class="glass-btn">Save</button></div></dialog>
+        <dialog id="olHotkeyDialog" class="ol-dialog ol-hotkey-dialog"><h3 id="olHotkeyTitle">Overlay hotkey</h3><p id="olKeyHelp">Click the field, then press your shortcut. Ctrl, Alt and Shift are supported. Home / Escape stay reserved for ReShade.</p><button id="olKeyCapture" class="ghost">F8</button><p id="olKeyError" role="status"></p><div class="row"><button id="olKeyCancel" class="ghost">Cancel</button><button id="olKeySave" class="glass-btn">Save</button></div></dialog>
       </section>
 
       <section class="view" id="view-settings">
@@ -260,10 +260,11 @@
           <p><b data-i18n="aboutTitle">DLSS 5 Swapper</b></p>
           <p data-i18n="aboutBody"></p>
           <div class="about-links">
-            <a class="glass-btn" href="https://github.com/rakanki911/DLSS5-Swapper" data-project="github">GitHub ↗</a>
-            <a class="glass-btn" href="https://github.com/rakanki911/DLSS5-Swapper/releases/latest" data-project="releases"><span data-i18n="latestReleases">Latest releases</span> ↗</a>
+            <a class="glass-btn" href="https://github.com/rakanki911/DLSS5-Swapper" data-project="github"><span data-i18n="aboutOriginal">Original project</span> ↗</a>
+            <a class="glass-btn" href="https://github.com/hezhixin15/DLSS5-Swapper-Chinese" data-project="zhGithub"><span data-i18n="aboutZh">Chinese enhanced edition</span> ↗</a>
           </div>
           <p class="hint hidden" id="projectLinkError" role="status" data-i18n="errProjectLink"></p>
+          <p class="dim" data-i18n="aboutLicense"></p>
           <div class="support">
             <p class="support-line" data-i18n="supportBody"></p>
             <div class="support-row">
@@ -294,6 +295,26 @@
       <div class="dlg-actions">
         <button class="ghost sm" id="dlgCancel" data-i18n="cancel">Cancel</button>
         <button class="glass-btn sm" id="dlgSave" data-i18n="setAdd">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- update notice -->
+  <div class="overlay hidden" id="updateOverlay">
+    <div class="dialog update-dialog">
+      <h3 data-i18n="updateTitle">A new version is available</h3>
+      <p class="update-versions" id="updateVersions"></p>
+      <div class="update-notes"><div class="k" data-i18n="updateNotes">What is new</div><p id="updateNotes"></p></div>
+      <p class="update-no-asset hidden" id="updateNoAsset" data-i18n="updateNoAsset"></p>
+      <div class="update-download hidden" id="updateDownload">
+        <div class="bar"><i id="updateProgressBar"></i></div>
+        <p id="updateProgressText"></p>
+      </div>
+      <div class="update-actions" id="updateActions">
+        <button class="glass-btn sm" id="updateNow" data-i18n="updateNow">Update now</button>
+        <button class="ghost sm" id="updateGithub" data-i18n="updateOpenGithub">Open GitHub</button>
+        <button class="ghost sm" id="updateSkip" data-i18n="updateSkipVersion">Skip this version</button>
+        <button class="ghost sm" id="updateLater" data-i18n="updateLater">Later</button>
       </div>
     </div>
   </div>
@@ -355,6 +376,24 @@
   <div id="gameMenu" class="ctx-menu hidden" role="menu" aria-hidden="true"></div>
   <div id="copyFeedback" class="copy-feedback hidden" role="status" aria-live="polite"></div>
 
+  <!-- First-run guide. Shown once, in Chinese only; see tutorial-copy.js. -->
+  <div class="tutorial hidden" id="tutorial" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+    <div class="tutorial-card">
+      <div class="tutorial-head">
+        <span class="tutorial-step" id="tutorialStep"></span>
+        <div class="tutorial-dots" id="tutorialDots"></div>
+      </div>
+      <h2 id="tutorialTitle"></h2>
+      <div class="tutorial-body" id="tutorialBody"></div>
+      <div class="tutorial-actions">
+        <button class="tutorial-skip" id="tutorialSkip" type="button"></button>
+        <span class="tutorial-gap"></span>
+        <button class="ghost" id="tutorialBack" type="button"></button>
+        <button class="glass-btn" id="tutorialNext" type="button"></button>
+      </div>
+    </div>
+  </div>
+
   <script src="overlay-panel.js"></script>
   <script src="overlay-live.js"></script>
   <script src="overlay-gallery.js"></script>
@@ -369,6 +408,8 @@
   <script src="../shared/rendering-api.js"></script>
   <script src="community.js"></script>
   <script src="chat.js"></script>
+  <script src="tutorial-copy.js"></script>
+  <script src="tutorial.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

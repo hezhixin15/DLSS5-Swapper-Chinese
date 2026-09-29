@@ -7,7 +7,7 @@ const protocol = require('./overlay-protocol');
 const preferences=require('./overlay-preferences');
 const { ipcMain } = require('electron');
 
-module.exports = async function startOverlayBridge({ BrowserWindow, userData, idleTakeoverMs = 5000 }) {
+module.exports = async function startOverlayBridge({ BrowserWindow, userData, lang = 'en', idleTakeoverMs = 5000 }) {
   const token = crypto.randomBytes(16).toString('hex');
   const endpoint = path.join(userData, 'overlay-bridge.endpoint');
   // The add-on composes the same name from LAB_OVERLAY_PROFILE (see
@@ -85,7 +85,9 @@ module.exports = async function startOverlayBridge({ BrowserWindow, userData, id
   win.webContents.on('render-process-gone', (_event, details) => { console.error('Lab overlay renderer stopped:', details.reason); close(); });
   win.on('closed', close);
   try {
-  await win.loadFile(path.join(__dirname, 'renderer/overlay-panel.html'));
+  // The panel page carries no i18n of its own: the app's language rides along
+  // in the URL so the panel scripts render in the right language from load.
+  await win.loadFile(path.join(__dirname, 'renderer/overlay-panel.html'), { search: `lang=${encodeURIComponent(String(lang || 'en'))}` });
   win.webContents.send('lab-overlay-preferences',preferences.read(userData));
   preferences.events.on('change',preferenceChanged);
   const height = Math.ceil(await win.webContents.executeJavaScript(`document.querySelector('#panel').getBoundingClientRect().height`));

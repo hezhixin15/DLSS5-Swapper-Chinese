@@ -6,6 +6,7 @@ dist/
 build/icon.ico
 build/icon.png
 *.log
+.trae-html-share-packages/
 docs/nexus/
 tools/
 vendor/

@@ -285,6 +285,17 @@ function gameApiProfile(file, renderer = rdr2Renderer) {
       ]
     };
   }
+  // Party Animals is a Unity game whose player statically imports opengl32.dll
+  // for the OpenGL fallback path Windows never takes, while the frames are
+  // presented through Direct3D 11 that the player resolves at runtime. The
+  // generic sibling-module walk answers OpenGL and offers routes that cannot
+  // work, so the profile pins the renderer the game actually uses.
+  if (/^partyanimals\.exe$/i.test(path.basename(file))) {
+    return {
+      detected: { api: 'dxgi', label: 'DirectX 11', via: 'game-profile' },
+      choices: [{ api: 'dxgi', label: 'DirectX 11' }]
+    };
+  }
   return null;
 }
 

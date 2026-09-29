@@ -88,7 +88,11 @@ async function detailsFor(appid) {
     const j = await getJson(
       `https://store.steampowered.com/api/appdetails?appids=${appid}&cc=us&l=english`
     );
-    const row = j && j[String(appid)];
+    // Steam keys the reply by its own canonical app id, which is not always the
+    // one that was asked for - WARDOGS answers under 4840670 while reporting
+    // steam_appid 1867240. Taking the single entry keeps the record instead of
+    // losing the lot to a key mismatch.
+    const row = j && (j[String(appid)] || Object.values(j)[0]);
     if (!row || !row.success || !row.data) return null;
     const d = row.data;
     return {
@@ -98,7 +102,11 @@ async function detailsFor(appid) {
         ? Number((d.release_date.date.match(/\d{4}/) || [])[0])
         : null,
       rating: (d.metacritic && d.metacritic.score) || null,
-      genres: (d.genres || []).map((g) => g.description).slice(0, 3)
+      genres: (d.genres || []).map((g) => g.description).slice(0, 3),
+      // Newer apps file their art under a per-asset content hash, so the path
+      // this module builds itself 404s for them. This one arrives ready to use,
+      // hash and all.
+      headerUrl: d.header_image || null
     };
   } catch {
     return null;
@@ -127,7 +135,10 @@ async function look(name, appid) {
     genres: (info && info.genres) || [],
     coverUrl: asset(id, 'library_600x900.jpg'),
     heroUrl: asset(id, 'library_hero.jpg'),
-    heroFallbackUrl: asset(id, 'header.jpg')
+    // The store's own header beats a hand-built path: plenty of games ship no
+    // library_hero at all, and a new one may have no library_600x900 either, so
+    // this is often the only shape left to show.
+    heroFallbackUrl: (info && info.headerUrl) || asset(id, 'header.jpg')
   };
 }
 

@@ -25,9 +25,18 @@ function managedModRoot(gameDir, exePath) {
   }
   return null;
 }
+// Anti-cheat that scanning the game folder cannot find. RICOCHET keeps its
+// kernel driver outside it, so those titles are matched on the executable name
+// instead - folder names collide ("Call of Duty Modern Warfare" is the 2019
+// game, "Call of Duty Modern Warfare 2" the 2009 one, which has none).
+const RICOCHET_EXES = new Set(['cod.exe', 'modernwarfare.exe', 'blackopscoldwar.exe', 'vanguard.exe']);
+// Where the anti-cheat does live in the folder, or can sit deeper than the scan
+// reaches, the folder name is the stable key.
+const KNOWN_ANTI_CHEAT_DIRS = /(?:^|[\\/])(?:arc[ _-]?raiders|war[ _-]?dogs)(?:[\\/]|$)/i;
 function hasAntiCheat(gameDir, exePath) {
   const dirs = [gameDir, ...(exePath ? [path.dirname(exePath)] : [])];
-  return dirs.some(dir => /(?:^|[\\/])arc[ _-]?raiders(?:[\\/]|$)/i.test(dir)) ||
+  return RICOCHET_EXES.has(exePath ? path.basename(exePath).toLowerCase() : '') ||
+    dirs.some(dir => KNOWN_ANTI_CHEAT_DIRS.test(dir)) ||
     dirs.some(dir => guards.antiCheatPresent(dir));
 }
 function targetIssue(gameDir, exePath) {
@@ -60,7 +69,15 @@ function assertSafeTarget(gameDir, exePath) {
 function assertAntiCheatConsent(gameDir, exePath, acknowledged) {
   if (hasAntiCheat(gameDir, exePath) && acknowledged !== true) throw problem('errAntiCheatConsent');
 }
-function assertLoaderCompatible(config, manifest) {
+// Games that still support Windows 7 ship Microsoft's own D3D12-on-7 runtime as
+// d3d12.dll beside the executable (Modern Warfare 2019 among them). It is the
+// game's own file, not a mod: every hook this app installs is dxgi.dll or
+// winmm.dll, never d3d12.dll, so the runtime blocks nothing and must not
+// refuse the install.
+function microsoftD3D12Runtime(file, mentions = pe.versionMentions) {
+  return mentions(file, 'Microsoft Corporation') && mentions(file, 'Direct3D');
+}
+function assertLoaderCompatible(config, manifest, mentions = pe.versionMentions) {
   const { gameDir, exePath, api, bitness, route } = config;
   const dir = path.dirname(exePath);
   const legacy = api === 'd3d8' || api === 'd3d9';
@@ -80,6 +97,7 @@ function assertLoaderCompatible(config, manifest) {
     if (pe.versionMentions(file, 'ReShade') && ++reshadeHooks > 1) throw problem('errLoaderConflict', 'Multiple ReShade hooks: ' + dir);
     const key = path.relative(gameDir, file).replace(/\\/g, '/').toLowerCase();
     if (owned.has(key)) continue;
+    if (name.toLowerCase() === 'd3d12.dll' && microsoftD3D12Runtime(file, mentions)) continue;
     // A Vulkan translation layer deliberately retains DirectX DLL names.
     // ReShade's Vulkan route does not replace these files. Recognize the
     // wrapper's contents, not just its name; unrelated injectors stay blocked.

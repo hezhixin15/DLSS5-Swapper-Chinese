@@ -9,7 +9,7 @@ const { createRequire } = require('module');
 
 // The update lookup runs in the main process against the real GitHub endpoint.
 // Here the network is a stub, so the test is about what the app concludes.
-function load(t, { version = '2.2.1', fetchImpl } = {}) {
+function load(t, { version = '2.2.1', fetchImpl, abortSignal } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'swapper-update-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const main = path.resolve(__dirname, '../main.js');
@@ -30,7 +30,7 @@ function load(t, { version = '2.2.1', fetchImpl } = {}) {
   const context = vm.createContext({
     require: name => stubs[name] || realRequire(name),
     __dirname: path.dirname(main), process, Buffer, console, setTimeout, clearTimeout,
-    AbortSignal,
+    AbortSignal: abortSignal || AbortSignal,
     fetch: async (...args) => { calls.count++; return fetchImpl(...args); }
   });
   vm.runInContext(fs.readFileSync(main, 'utf8'), context, { filename: main });
@@ -89,4 +89,46 @@ test('a failed lookup is distinguishable from being up to date', () => {
   const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
   assert.match(renderer, /if \(!answer\.latest\) \{[\s\S]*updateCheckFailed/,
     'the renderer separates the two before it decides there is no news');
+});
+
+test('the lookup targets the Chinese enhanced repository with a 10 second timeout', async (t) => {
+  let url = null, timeout = 0;
+  const { handlers } = load(t, {
+    abortSignal: { timeout: (ms) => ({ timeout: ms }) },
+    fetchImpl: async (u, opts) => { url = u; timeout = opts?.signal?.timeout ?? 0; return release('v2.2.2'); }
+  });
+  const answer = await handlers.get('update-check')();
+  assert.equal(url, 'https://api.github.com/repos/hezhixin15/DLSS5-Swapper-Chinese/releases/latest',
+    'the check asks the Chinese enhanced edition, not the original repository');
+  assert.equal(timeout, 10000, 'the check gives up after 10 seconds');
+  assert.equal(answer.newer, true);
+});
+
+test('a release with an .exe asset offers the one-click update', async (t) => {
+  const { handlers } = load(t, {
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({
+        tag_name: 'v2.2.2',
+        body: 'Fixed everything',
+        assets: [
+          { name: 'DLSS5-Swapper-Setup.exe', browser_download_url: 'https://github.com/example/Setup.exe' },
+          { name: 'blockmap', browser_download_url: 'https://github.com/example/blockmap' }
+        ]
+      })
+    })
+  });
+  const answer = await handlers.get('update-check')();
+  assert.equal(answer.asset.name, 'DLSS5-Swapper-Setup.exe');
+  assert.equal(answer.asset.url, 'https://github.com/example/Setup.exe');
+  assert.equal(answer.notes, 'Fixed everything');
+});
+
+test('a release without an installer still reports the new version', async (t) => {
+  const { handlers } = load(t, {
+    fetchImpl: async () => ({ ok: true, json: async () => ({ tag_name: 'v2.2.2', assets: [] }) })
+  });
+  const answer = await handlers.get('update-check')();
+  assert.equal(answer.newer, true);
+  assert.equal(answer.asset, null);
 });

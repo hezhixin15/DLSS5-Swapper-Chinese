@@ -449,6 +449,19 @@ async function renderSettings() {
         aria-checked="${info.autoScanDrives ? 'true' : 'false'}" aria-label="${t('setAutoScan')}">
         <span class="knob"></span>
       </button></div>
+    <div class="set-row"><div><div class="k">${t('setUpdateCheck')}</div>
+      <div class="v" id="setUpdateCheckHint">${t('setUpdateCheckHint')}</div></div>
+      <button class="setting-switch" id="setUpdateCheck" type="button" role="switch"
+        aria-checked="${info.autoUpdateCheck ? 'true' : 'false'}" aria-label="${t('setUpdateCheck')}" aria-describedby="setUpdateCheckHint">
+        <span class="knob"></span>
+      </button></div>
+    <div class="set-row"><div><div class="k">${t('getLatest')}</div>
+      <div class="v">${t('manualCheckHint')}</div></div>
+      <button class="ghost sm" id="setCheckUpdate">${t('getLatest')}</button></div>
+    ${state.lang === 'zh' || state.lang === 'zh-TW' ? `
+    <div class="set-row"><div><div class="k">${t('setReopenTutorial')}</div>
+      <div class="v">${t('setReopenTutorialHint')}</div></div>
+      <button class="ghost sm" id="setReopenTutorial">${t('setReopenTutorialBtn')}</button></div>` : ''}
     <div class="set-row"><div><div class="k">${t('setRoots')}</div>${
         (info.roots || []).length
           ? `<div class="paths">${info.roots.map((f) => `
@@ -477,6 +490,9 @@ async function renderSettings() {
           : `<div class="v">${t('setHiddenNone')}</div>`}
       </div>
       <span class="d">${(info.hidden || []).length}</span></div>
+    <div class="set-row"><div><div class="k">${t('setClearCache')}</div>
+      <div class="v">${t('setClearCacheHint')}</div></div>
+      <button class="ghost sm" id="setClearCache">${t('setClearCacheBtn')}</button></div>
     <div class="set-row"><div><div class="k">${t('setLibrary')}</div><div class="v">${esc(info.stateFile)}</div></div>
       <button class="ghost sm" id="setReset">${t('setReset')}</button></div>
     <div class="set-row"><div><div class="k">${t('setPosters')}</div><div class="v">${esc(info.posterDir)}</div></div>
@@ -525,6 +541,24 @@ async function renderSettings() {
     await load();
     await renderSettings();
   };
+  $('setUpdateCheck').onclick = async () => {
+    const toggle = $('setUpdateCheck');
+    const enabled = toggle.getAttribute('aria-checked') !== 'true';
+    toggle.disabled = true;
+    try {
+      state.autoUpdateCheck = await window.lab.setAutoUpdateCheck(enabled);
+      toggle.setAttribute('aria-checked', String(state.autoUpdateCheck));
+    } catch (error) {
+      log(error.message);
+    } finally {
+      toggle.disabled = false;
+    }
+  };
+  $('setCheckUpdate').onclick = () => checkForUpdates({ manual: true });
+  // Only the two Chinese scripts carry guide copy, so the row exists for them
+  // alone rather than showing a button that would open nothing.
+  const reopenTutorial = $('setReopenTutorial');
+  if (reopenTutorial) reopenTutorial.onclick = () => window.tutorialUi.reopen(state.lang);
   $('setAddFolder').onclick = async () => { if (await window.lab.addFolder()) load(); };
   for (const b of $('settings').querySelectorAll('[data-unroot]')) {
     b.onclick = async () => {
@@ -555,6 +589,33 @@ async function renderSettings() {
       load();
     };
   }
+  // Deleting the cache throws away work the app did for the user, so it is
+  // asked about first, the way every other destructive action here is.
+  $('setClearCache').onclick = async () => {
+    const button = $('setClearCache');
+    if (!await ask({
+      icon: 'trash', title: t('setClearCache'),
+      body: t('clearCacheBody'), confirm: t('clearCacheConfirm'), cancel: t('cancel')
+    })) return;
+    button.disabled = true;
+    try {
+      const answer = await window.lab.clearCache();
+      if (!answer || answer.ok !== true) {
+        log(t(answer && answer.code === 'errJobBusy' ? 'errJobBusy' : 'clearCacheFailed'));
+        return;
+      }
+      log(answer.failed && answer.failed.length
+        ? t('clearCachePartial', answer.failed.length)
+        : t('clearCacheDone'));
+      // Every game lost its scan result, so this is what rescans them all.
+      await load();
+      await renderSettings();
+    } catch (error) {
+      log(error.message);
+    } finally {
+      button.disabled = false;
+    }
+  };
   $('setReset').onclick = async () => { await window.lab.reset(); load(); };
   await window.communityUi.renderProfile($('settings'));
 }
@@ -751,7 +812,9 @@ function wireNotes() {
 function installOptions(d, pick, dir) {
   const warning = (d.antiCheatWarning || pick?.antiCheatWarning)
     ? `<div class="emu-note anti-cheat-warning" role="alert"><b>${t('antiCheatWarningTitle')}</b><span>${t('antiCheatWarning')}</span></div>` : '';
-  if (!pick) return warning;
+  const crashBanner = (d.crashWarning || pick?.crashWarning)
+    ? `<div class="emu-note anti-cheat-warning" role="alert"><b>${t('crashWarningTitle')}</b><span>${t('crashWarning')}</span></div>` : '';
+  if (!pick) return warning + crashBanner;
   const api = selectedApi(pick, dir);
   const route = selectedRoute(d, pick, dir, api.api);
   const routes = routesFor(pick);
@@ -764,7 +827,7 @@ function installOptions(d, pick, dir) {
   const apiHint = `<div class="emu-note" id="apiHint"><span>${t('apiOverrideHint')}</span>${api.api === 'vulkan' && !opti ? `<span>${t('apiVulkanHint')}</span>` : ''}</div>`;
   // Keep the picker available even when automatic detection yields DX10 or an
   // unsupported renderer. Otherwise the user cannot correct that detection.
-  if (!routes.length) return `<div class="install-options">${apiField}</div>${notesBox([apiHint, `<div class="emu-note">${t('unsupportedRendererHint')}</div>`, warning], Boolean(warning))}`;
+  if (!routes.length) return `<div class="install-options">${apiField}</div>${notesBox([apiHint, `<div class="emu-note">${t('unsupportedRendererHint')}</div>`, warning, crashBanner], Boolean(warning || crashBanner))}`;
   return `
     <div class="install-options">
       ${apiField}
@@ -788,33 +851,102 @@ function installOptions(d, pick, dir) {
       </div>`,
       pick.installIssue ? `<div class="emu-note compatibility-warning" role="alert">${t(pick.installIssue)}</div>` : '',
       warning,
+      crashBanner,
       ['ddraw', 'd3d8', 'd3d9'].includes(api.api) ? `<div class="emu-note">${t('legacyRendererHint')}</div>` : '',
       pick.emulator ? `<div class="emu-note"><b>${esc(pick.emulator.name)} · ${esc(pick.emulator.system)}</b><span>${esc(pick.emulator.hint)}</span><span>${t('emulatorDepthHint')}</span>${pick.emulator.key === 'xenia' ? `<span>${t('xeniaUiHint')}</span>` : ''}</div>` : ''
-    ], Boolean(warning || pick.installIssue))}`;
+    ], Boolean(warning || crashBanner || pick.installIssue))}`;
 }
 
-// A newer release exists, said once, in the corner. The link is the same
-// allowlisted releases page the About view uses; nothing downloads itself.
-async function showUpdateNotice() {
-  const link = $('statusUpdate');
-  if (!link || !window.lab.checkUpdate) return;
+// A transient note in the top-left corner. Automatic detection must stay out
+// of the way: a failed silent check is one small toast, nothing more.
+let toastTimer = null;
+function showToast(message) {
+  let toast = $('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.setAttribute('role', 'status');
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+let pendingUpdate = null;
+function showUpdateDialog(answer) {
+  pendingUpdate = answer;
+  $('updateVersions').textContent = t('updateVersions', answer.current, answer.latest);
+  $('updateNotes').textContent = answer.notes || t('updateNoNotes');
+  $('updateNoAsset').classList.toggle('hidden', Boolean(answer.asset));
+  $('updateNow').disabled = !answer.asset;
+  $('updateDownload').classList.add('hidden');
+  $('updateActions').classList.remove('hidden');
+  $('updateOverlay').classList.remove('hidden');
+}
+function closeUpdateDialog() {
+  $('updateOverlay').classList.add('hidden');
+  pendingUpdate = null;
+}
+function setUpdateProgress(percent) {
+  $('updateProgressBar').style.width = Math.max(0, Math.min(100, Math.round(percent))) + '%';
+  $('updateProgressText').textContent = t('updateDownloading', Math.round(percent));
+}
+
+// One lookup, two moods. Auto-detection is silent: only a newer release (that
+// the person has not already skipped) opens the dialog, and only a failed check
+// shows the small corner toast. A manual check from Settings also says when the
+// build is already current.
+async function checkForUpdates({ manual = false } = {}) {
+  if (!window.lab.checkUpdate) return;
   let answer = null;
   try { answer = await window.lab.checkUpdate(); } catch { return; }
   if (!answer) return;
-  // A failed lookup used to look exactly like "nothing new", so someone on an
-  // old build whose check never completed was told nothing at all and had no
-  // reason to go and look. Say which of the two it was.
   if (!answer.latest) {
-    link.textContent = t('updateCheckFailed');
-    link.classList.add('muted');
-    link.classList.remove('hidden');
+    // A failed lookup must not look like "nothing new": say so, quietly.
+    showToast(t('updateCheckFailedShort'));
     return;
   }
-  if (!answer.newer) return;
-  link.textContent = t('updateAvailable', answer.latest);
-  link.classList.remove('muted');
-  link.classList.remove('hidden');
+  if (answer.newer) {
+    if (!manual && (state.skippedUpdates || []).includes(answer.latest)) return;
+    showUpdateDialog(answer);
+    return;
+  }
+  if (manual) showToast(t('updateUpToDate', answer.current));
 }
+
+// The dialog is shared by the automatic check and the manual one in Settings.
+// "Later" and the overlay click just close it; "Skip" remembers the version so
+// it stops asking; "GitHub" leaves without downloading anything.
+$('updateNow').onclick = async () => {
+  const button = $('updateNow');
+  button.disabled = true;
+  $('updateActions').classList.add('hidden');
+  $('updateDownload').classList.remove('hidden');
+  setUpdateProgress(0);
+  const result = await window.lab.downloadUpdate().catch((e) => ({ ok: false, reason: 'ipc', message: e.message }));
+  if (!result || !result.ok) {
+    $('updateDownload').classList.add('hidden');
+    $('updateActions').classList.remove('hidden');
+    button.disabled = false;
+    // Success means the installer is launching and this process is quitting,
+    // so only failures come back here.
+    showToast(t('updateFailed', result && result.reason ? result.reason : ''));
+  }
+};
+$('updateGithub').onclick = () => { window.lab.openProject('zhReleases').catch(() => {}); };
+$('updateSkip').onclick = async () => {
+  if (pendingUpdate && pendingUpdate.latest) {
+    try { await window.lab.skipUpdate(pendingUpdate.latest); } catch {}
+  }
+  closeUpdateDialog();
+};
+$('updateLater').onclick = closeUpdateDialog;
+$('updateOverlay').onclick = (e) => { if (e.target === $('updateOverlay')) closeUpdateDialog(); };
+window.lab.onUpdateProgress?.((p) => {
+  if (typeof p?.percent === 'number' && !$('updateDownload').classList.contains('hidden')) setUpdateProgress(p.percent);
+});
 
 function jobLog(line) {
   jobLines.push(line);
@@ -876,7 +1008,13 @@ async function openSheet(dir, keepLog = false) {
   if (!routeChoice.has(dir) && d.installedRoute) routeChoice.set(dir, d.installedRoute);
 
   const info = art && !art.error && !art.none ? art : null;
-  const cover = (info && info.cover) || (g.poster && g.poster.tall ? g.poster.url : null);
+  const tallArt = (info && info.cover) || (g.poster && g.poster.tall ? g.poster.url : null);
+  // A game too new for a portrait capsule ships only wide art - Steam has no
+  // library_600x900 for it at all. Showing that beats two initials, but it has
+  // to be letterboxed: cropping a logo that spans the whole banner would leave
+  // three letters of it. The grid already treats a wide poster this way.
+  const cover = tallArt || (info && info.hero) || (g.poster ? g.poster.url : null);
+  const coverWide = Boolean(cover) && !tallArt;
   const hero = (info && info.hero) || (g.poster && !g.poster.tall ? g.poster.url : null);
   const upToDate = Boolean(d.newDlss && d.currentDlss && d.currentDlss.version === d.newDlss);
   // With a picker on screen the executable already has its own row, so the
@@ -894,7 +1032,7 @@ async function openSheet(dir, keepLog = false) {
     </div>
     <div class="sheet-body">
       <div class="head">
-        <div class="cover">${cover ? `<img src="${cover}" alt="">` : esc(initials(g.name))}</div>
+        <div class="cover${coverWide ? ' wide' : ''}"${coverWide ? ` style="--bgimg:url('${cover}')"` : ''}>${cover ? `<img src="${cover}" alt="">` : esc(initials(g.name))}</div>
         <div class="who">
           <h3>${esc(info ? info.name : g.name)}</h3>
           <div class="meta">${[g.launcher, info && info.released, info && info.genres && info.genres.join(', '),
@@ -1122,6 +1260,10 @@ function applyLang(code) {
   for (const node of document.querySelectorAll('[data-i18n]')) {
     node.textContent = t(node.dataset.i18n);
   }
+  // Window-control tooltips have no data-i18n hook in the markup; label them here.
+  $('themeBtn').title = t('ttTheme');
+  $('winMin').title = t('ttMinimize'); $('winMin').setAttribute('aria-label', t('ttMinimize'));
+  $('winClose').title = t('ttClose'); $('winClose').setAttribute('aria-label', t('ttClose'));
   // Anything drawn from data has to be rebuilt, not just relabelled.
   renderLog();
   renderRecent();
@@ -1134,6 +1276,7 @@ function applyLang(code) {
   if (view && view.id === 'view-community') window.communityUi.render();
   window.communityUi.applyLanguage();
   window.chatUi?.applyLanguage?.();
+  window.tutorialUi?.applyLanguage?.(state.lang);
   if (sheetGame) openSheet(sheetGame.dir, true);
 }
 
@@ -1459,11 +1602,12 @@ $('overlay').onclick = (e) => { if (e.target === $('overlay')) closeSheet(); };
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!$('dlgOverlay').classList.contains('hidden')) closeDialog();
+  else if (!$('updateOverlay').classList.contains('hidden')) closeUpdateDialog();
   else closeSheet();
 });
 // Most job events are progress markers read as codes. The few that are
 // advice for the person are shown in their language instead.
-const SPOKEN_JOB_CODES = new Set(['historySaveWarning', 'driverNeuralFault', 'oldShaderCompiler', 'overlaySkipped', 'feedVkLayerReady', 'neuralModelKept', 'rivalConsumerSetAside']);
+const SPOKEN_JOB_CODES = new Set(['historySaveWarning', 'driverNeuralFault', 'oldShaderCompiler', 'overlaySkipped', 'feedVkLayerReady', 'neuralModelKept', 'rivalConsumerSetAside', 'crashRiskAccepted']);
 window.lab.onJob((e) => jobLog(SPOKEN_JOB_CODES.has(e.code)
   ? t(e.code, ...Object.values(e.params || {}))
   : `${e.code} ${JSON.stringify(e.params)}`));
@@ -1486,11 +1630,24 @@ document.addEventListener('drop', (e) => e.preventDefault());
   state.groupGamesByStore = boot.groupGamesByStore !== false;
   document.documentElement.dataset.theme = state.theme;
   applyLang(boot.lang || 'en');
+  // After applyLang, so the guide is drawn in the language the app settled on
+  // rather than the raw code that came out of the state file.
+  window.tutorialUi.maybeShow(state.lang, boot.tutorial);
   $('statusVersion').textContent = `v${boot.version}`;
   // Nothing this app installs is on disk. Saying so now beats letting somebody
   // pick a game, choose a route and press Install before finding out (#220).
   if (boot.payloadMissing) log(boot.payloadMissing);
-  showUpdateNotice();
+  // Automatic updates stay invisible: one background lookup, and only a newer
+  // release or a failed check ever makes a sound. The check is not awaited.
+  try {
+    const prefs = await window.lab.settings();
+    state.autoUpdateCheck = prefs.autoUpdateCheck !== false;
+    state.skippedUpdates = prefs.skippedUpdates || [];
+  } catch {
+    state.autoUpdateCheck = true;
+    state.skippedUpdates = [];
+  }
+  if (state.autoUpdateCheck) checkForUpdates();
   state.logo = boot;
   paintBrand();
   state.art = (await window.lab.artStatus()).available;

@@ -1,4 +1,14 @@
 'use strict';
+// The in-game surface does not load i18n.js: the bridge hands the app's
+// language over in the page URL and the panel scripts read it off <html lang>.
+const urlLang = new URLSearchParams(location.search).get('lang');
+if (urlLang) document.documentElement.lang = urlLang;
+// Trilingual helper shared by the panel scripts; this file loads first in
+// every page that renders the panel, so the others can rely on it.
+window.overlayText = (en, ar, zh) => {
+  const l = document.documentElement.lang || 'en';
+  return l === 'zh' || l.startsWith('zh') ? (zh !== undefined ? zh : en) : l === 'ar' ? ar : en;
+};
 // Native <input type=range> dragging relies on OS capture, which an offscreen
 // Chromium window does not own. Handle pointer drags in the shared DOM instead.
 // A custom theme stores one accent colour. The other three shades the panel
@@ -57,19 +67,23 @@ window.bindOverlayRanges = root => {
 };
 // One DOM for the the preview AND the in-game Chromium surface. No native
 // reconstruction of controls: their metrics, fonts and behavior stay identical.
-window.mountOverlayPanel = (root, footer = 'Design inspired by the NVIDIA reference. Masking, models and DLSS sliders are not connected to the SDK.') => {
+window.mountOverlayPanel = (root, footer) => {
+  const t = window.overlayText;
+  const footerText = footer !== undefined ? footer : t('Design inspired by the NVIDIA reference. Masking, models and DLSS sliders are not connected to the SDK.', 'التصميم مستوحى من مرجع NVIDIA. الأقنعة والنماذج ومنزلقات DLSS غير متصلة بـ SDK.', '设计灵感来自 NVIDIA 参考实现。遮罩、模型和 DLSS 滑块并未连接到 SDK。');
   const slider = (id, label, value) => `<label class="ol-slider" for="${id}"><span>${label}</span><input id="${id}" type="range" min="0" max="1" step="0.01" value="${value}"/><output for="${id}">${value.toFixed(2)}</output></label>`;
+  const structure = () => t('Structure Intensity', 'شدة البنية', '结构强度');
+  const tone = () => t('Tone Intensity', 'شدة النبرة', '色调强度');
   root.innerHTML = `<div class="ol-panel" dir="ltr">
-    <header><span class="ol-eyebrow">DLSS 5 SWAPPER CONTROLS</span><span class="ol-prototype">PREVIEW</span></header>
-    <label class="ol-check ol-master"><input type="checkbox" checked/> DLSS ON <small>Preview only</small></label>
-    <label class="ol-check ol-badge"><input type="checkbox"/> ON-SCREEN STATUS <small>Shows DLSS 5 On/Off over the game</small></label>
-    <section><h4>GLOBAL CONTROLS</h4>${slider('olStructure', 'Structure Intensity', .38)}${slider('olTone', 'Tone Intensity', .28)}</section>
-    <section class="ol-muted"><label class="ol-check"><input type="checkbox" disabled/> MODEL AUTOMASK <small>SDK required</small></label>${slider('olMaskStructure', 'Structure Intensity', 1)}</section>
-    <section><label class="ol-check"><input type="checkbox" checked/> DEVELOPER MASKING <small>Demo groups</small></label>
-      ${[['Pitcher', .45, .35], ['Grapes', 1, 1], ['Bottles', 1, 1]].map(([label, structure, tone], i) => `<div class="ol-group"><label class="ol-check"><input type="checkbox" checked/> ${label}</label>${slider(`olGroup${i}s`, 'Structure Intensity', structure)}${slider(`olGroup${i}t`, 'Tone Intensity', tone)}</div>`).join('')}
-    </section><section><h4>MODELS <small>Preview selection</small></h4><div class="ol-models">${['A', 'B', 'C'].map((m, i) => `<button class="ol-model ${i ? '' : 'selected'}" aria-pressed="${!i}">Model ${m}</button>`).join('')}</div></section>
+    <header><span class="ol-eyebrow">${t('DLSS 5 SWAPPER CONTROLS', 'أدوات DLSS 5 SWAPPER', 'DLSS 5 SWAPPER 控件')}</span><span class="ol-prototype">${t('PREVIEW', 'معاينة', '预览')}</span></header>
+    <label class="ol-check ol-master"><input type="checkbox" checked/> ${t('DLSS ON', 'تشغيل DLSS', 'DLSS 开启')} <small>${t('Preview only', 'معاينة فقط', '仅预览')}</small></label>
+    <label class="ol-check ol-badge"><input type="checkbox"/> ${t('ON-SCREEN STATUS', 'حالة على الشاشة', '屏幕状态显示')} <small>${t('Shows DLSS 5 On/Off over the game', 'يعرض حالة DLSS فوق اللعبة', '在游戏画面上显示 DLSS 开/关')}</small></label>
+    <section><h4>${t('GLOBAL CONTROLS', 'التحكم العام', '全局控制')}</h4>${slider('olStructure', structure(), .38)}${slider('olTone', tone(), .28)}</section>
+    <section class="ol-muted"><label class="ol-check"><input type="checkbox" disabled/> ${t('MODEL AUTOMASK', 'قناع تلقائي للنموذج', '模型自动遮罩')} <small>${t('SDK required', 'يتطلب SDK', '需要 SDK')}</small></label>${slider('olMaskStructure', structure(), 1)}</section>
+    <section><label class="ol-check"><input type="checkbox" checked/> ${t('DEVELOPER MASKING', 'أقنعة المطور', '开发者遮罩')} <small>${t('Demo groups', 'مجموعات العرض', '演示分组')}</small></label>
+      ${[[['Pitcher', 'إبريق', '水壶'], .45, .35], [['Grapes', 'عناقيد', '葡萄'], 1, 1], [['Bottles', 'قوارير', '瓶子'], 1, 1]].map(([labels, structureValue, toneValue], i) => `<div class="ol-group"><label class="ol-check"><input type="checkbox" checked/> ${t(...labels)}</label>${slider(`olGroup${i}s`, structure(), structureValue)}${slider(`olGroup${i}t`, tone(), toneValue)}</div>`).join('')}
+    </section><section><h4>${t('MODELS', 'النماذج', '模型')} <small>${t('Preview selection', 'اختيار المعاينة', '预览选择')}</small></h4><div class="ol-models">${['A', 'B', 'C'].map((m, i) => `<button class="ol-model ${i ? '' : 'selected'}" aria-pressed="${!i}">${t(`Model ${m}`, `نموذج ${m}`, `模型 ${m}`)}</button>`).join('')}</div></section>
     <footer></footer></div>`;
-  root.querySelector('footer').textContent = footer;
+  root.querySelector('footer').textContent = footerText;
   root.querySelector('#olMaskStructure').disabled = true;
   for (const input of root.querySelectorAll('input[type="range"]')) input.oninput = () => { input.nextElementSibling.textContent = Number(input.value).toFixed(2); };
   for (const model of root.querySelectorAll('.ol-model')) model.onclick = () => {

@@ -935,6 +935,16 @@ select option { background: var(--panel); color: var(--text); }
   display: grid; place-items: center; font-size: 28px; font-weight: 700; color: var(--dim);
 }
 .head .cover img { width: 100%; height: 100%; object-fit: cover; }
+/* A game whose only art is the wide banner: the image is fitted inside the
+   2:3 box instead of cropped to a slice of it, over a blurred copy of itself
+   that fills the rest - the treatment the grid already gives a wide poster. */
+.head .cover.wide { position: relative; }
+.head .cover.wide img { object-fit: contain; position: relative; z-index: 1; }
+.head .cover.wide::before {
+  content: ""; position: absolute; inset: -20%;
+  background: var(--bgimg) center / cover;
+  filter: blur(18px) saturate(1.2); opacity: .55;
+}
 .head .who { flex: 1; min-width: 0; padding-top: 66px; }
 .head h3 { font-size: 21px; font-weight: 700; line-height: 1.2; }
 .head .meta { font-size: 12px; color: var(--dim); margin-top: 5px; }
@@ -2731,3 +2741,23 @@ body { cursor: default; }
   .community-dialog .community-quote .community-when,
   .community-dialog .community-quote .community-about { font-size: 11.5px; }
 }
+
+/* ---------------- update dialog & toast ---------------- */
+.update-dialog { width: min(460px, 100%); }
+.update-versions { font-size: 15px; font-weight: 650; margin: 6px 0 12px; }
+.update-notes .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 4px; }
+.update-notes p { font-size: 13px; line-height: 1.7; white-space: pre-wrap; max-height: 200px; overflow: auto; color: var(--dim); }
+.update-no-asset { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; }
+.update-download { margin-top: 14px; }
+.update-download .bar { margin-top: 0; }
+.update-download p { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.update-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+#toast {
+  position: fixed; top: 54px; left: 16px; z-index: 1200;
+  max-width: 280px; padding: 10px 14px; border-radius: 10px;
+  background: rgba(10, 14, 18, .92); color: #fff; border: 1px solid var(--line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .28); font-size: 13px; line-height: 1.5;
+  opacity: 0; transform: translateY(-6px); pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease;
+}
+#toast.show { opacity: 1; transform: translateY(0); }

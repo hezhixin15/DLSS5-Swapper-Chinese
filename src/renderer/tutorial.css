@@ -1,0 +1,136 @@
+/* The first-run guide. Sits above everything the app draws, including the
+   in-game overlay lab, so it is the only thing on screen while it is open. */
+
+.tutorial {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: grid;
+  /* An auto-sized row would leave the card's max-height a percentage of
+     nothing, so the card would grow past a short window and cut the last page
+     off. A definite row keeps it inside the viewport. */
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  padding: 28px;
+  background: rgba(3, 6, 10, .62);
+  backdrop-filter: blur(6px);
+}
+
+.tutorial-card {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  max-height: 100%;
+  padding: 26px 30px 22px;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.tutorial-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.tutorial-step {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  color: var(--dim);
+}
+
+.tutorial-dots { display: flex; gap: 6px; }
+
+.tutorial-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--glass);
+  border: 1px solid var(--stroke);
+}
+
+.tutorial-dots i.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(108, 193, 10, .55);
+}
+
+.tutorial-card h2 {
+  margin-bottom: 16px;
+  font-size: 21px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+/* The copy is long on the last two pages, so the body scrolls and the actions
+   stay put rather than being pushed off the bottom. */
+.tutorial-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.72;
+}
+
+.tutorial-body::-webkit-scrollbar { width: 8px; }
+.tutorial-body::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 4px; }
+.tutorial-body::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
+
+.tutorial-body p + p,
+.tutorial-body p + ul,
+.tutorial-body ul + p,
+.tutorial-body p + .tutorial-groups { margin-top: 12px; }
+
+.tutorial-note {
+  padding: 11px 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.tutorial-list { padding-left: 20px; }
+.tutorial-list li { margin-top: 7px; }
+.tutorial-list li::marker { color: var(--accent); }
+
+.tutorial-groups section + section { margin-top: 16px; }
+
+.tutorial-groups h3 {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.tutorial-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.tutorial-gap { flex: 1; }
+
+.tutorial-skip {
+  padding: 9px 14px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tutorial-skip:hover { color: var(--text); background: var(--glass); }
+
+.tutorial-actions .ghost[hidden] { display: none; }
