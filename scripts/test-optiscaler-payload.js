@@ -95,6 +95,50 @@ function fakeExe(file) {
     await manager.restore(dir);
     assert.equal(fs.existsSync(path.join(dir, 'winmm.dll')), false);
     console.log('PASS: Vulkan proxy/bridge configuration and explicit restore-first guard (no registry modified)');
+    // The pre-SR fork is a different package of the same project: no forwarder
+    // DLL, its licence inside the archive, its own notes file. Switching a game
+    // from the forwarded build to it has to take the forwarder away, or the
+    // neural pass silently does nothing.
+    {
+      const presr = opti.releaseFor('0.8.92-presr');
+      const forkRoot = await opti.ensureOptiScaler(path.join(__dirname, '../vendor/runtime-tests'), presr.version);
+      const dir = path.join(root, 'presr');
+      fs.mkdirSync(dir);
+      const exePath = path.join(dir, 'Game.exe'); fakeExe(exePath);
+      fs.copyFileSync(source.payload.find(f => f.name === 'nvngx_dlss.dll').path, path.join(dir, 'nvngx_dlss.dll'));
+      fs.writeFileSync(path.join(dir, 'unrelated.txt'), 'keep');
+      const originals = Object.fromEntries(fs.readdirSync(dir).map(name => [name, digest(path.join(dir, name))]));
+      const base = { gameDir: dir, exePath, api: 'dxgi', apiLabel: 'DirectX 12', bitness: 64, source, route: 'optiscaler' };
+      // The forwarded build first, so there is a forwarder to leave behind.
+      await manager.install({ ...base, optiRoot });
+      assert.equal(fs.existsSync(path.join(dir, 'nvngx.dll_dlssnr.dll')), true);
+      assert.equal(manager.readManifest(dir).optiscaler.version, opti.RELEASE.version);
+      // Then the fork over it.
+      await manager.install({ ...base, optiRoot: forkRoot, optiVersion: presr.version });
+      const manifest = manager.readManifest(dir);
+      assert.equal(manifest.optiscaler.version, presr.version, 'the manifest names the build that was installed');
+      assert.equal(fs.existsSync(path.join(dir, 'nvngx.dll_dlssnr.dll')), false, 'the other build\'s forwarder is gone');
+      assert.equal(pe.versionMentions(path.join(dir, 'dxgi.dll'), 'OptiScaler'), true);
+      for (const rel of ['OptiScaler.ini', 'nvngx_dlssnr.dll', 'OptiScaler/licenses/LICENSE.GPL-3.0.txt',
+        'OptiScaler/licenses/PeripheralWarp_LICENSE.txt', 'OptiScaler/README-DLSSNR.txt',
+        'OptiScaler/D3D12_OptiScaler/D3D12Core.dll']) {
+        assert.equal(fs.existsSync(path.join(dir, rel)), true, rel);
+      }
+      // Its own config keys are the ones the app writes, under the same names.
+      const config = ini.readText(path.join(dir, 'OptiScaler.ini'));
+      assert.equal(ini.getIni(config, 'DlssNr', 'Enabled'), 'true');
+      assert.equal(ini.getIni(config, 'ProcessFilter', 'TargetProcessName'), 'Game.exe');
+      assert.equal(ini.getIni(config, 'Upscalers', 'Dx12Upscaler'), 'dlss');
+      // And the app reports it as installed, which it did not while every build
+      // was required to have a forwarder.
+      assert.equal((await scanGame(dir)).install.optiscaler.installed, true);
+      await manager.restore(dir);
+      for (const [name, hash] of Object.entries(originals)) assert.equal(digest(path.join(dir, name)), hash, name);
+      assert.equal(fs.existsSync(path.join(dir, 'OptiScaler')), false);
+      assert.equal(fs.existsSync(path.join(dir, 'OptiScaler.ini')), false);
+      assert.equal(fs.existsSync(path.join(dir, 'dxgi.dll')), false);
+      console.log('PASS: real pre-SR fork install over the forwarded build, forwarder retired, reported installed, full restore');
+    }
     for (const route of ['native', 'feeder', 'optiscaler']) {
       const protectedDir = path.join(root, `consent-${route}`);
       fs.mkdirSync(protectedDir);

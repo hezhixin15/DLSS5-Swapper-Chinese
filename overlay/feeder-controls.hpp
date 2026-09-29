@@ -1,11 +1,11 @@
-// Feeder 0.15.1 documents a live cfg reload every 60 delivered frames. This
+// Feeder 1.17.0 documents a live cfg reload every 60 delivered frames. This
 // adapter edits that file, not private memory. Readback here is FILE readback,
 // not confirmation of GPU execution. RenoDX NR remains a separate connection.
 #pragma once
 #include <fstream>
 namespace feed_live {
 struct field { const char *key, *name; uint32_t kind; float min,max,step,value=0; bool available=false; };
-inline std::array<field,10> schema() { return {{
+inline std::array<field,12> schema() { return {{
     {"enabled","Feeder enabled (original panel)",1,0,1,1},
     {"work_resolution","Work resolution (%)",0,50,100,1},
     {"work_sharpness","Work sharpness",0,0,1,.01f},
@@ -23,7 +23,18 @@ inline std::array<field,10> schema() { return {{
     // Nits mapped to linear 1.0 - BT.2408 reference white is 203. Lower it if
     // the picture is dim through the bridge, raise it if it is too bright. The
     // range is wide so a value already in the cfg is never read as invalid.
-    {"hdr_paper_white","HDR paper white (nits)",0,50,1000,1}
+    {"hdr_paper_white","HDR paper white (nits)",0,50,1000,1},
+    // 1.17.0. The neural consumer re-decides what a still region looks like
+    // from tiny frame-to-frame differences in its input, so a slope under a
+    // tree darkens over the frames after the camera stops although the game
+    // drew it the same way. The add-on holds a pixel whose input did not move
+    // and follows the model where it did. 0 is off; .9 fades a new opinion in
+    // over about ten frames. Every 64-bit transport, and the 32-bit helper.
+    {"hold_strength","Output stabiliser hold",0,0,1,.01f},
+    // How far a pixel may differ from its anchor and still count as still.
+    // Raise it if a held region unlocks on its own, lower it if slow
+    // animation lags behind.
+    {"hold_tolerance","Stabiliser change tolerance",0,0,1,.01f}
 }}; }
 inline bool read(const std::wstring &path,std::string &out) {
     DWORD attr=GetFileAttributesW(path.c_str());
@@ -50,7 +61,7 @@ inline bool locate(const std::string &text,const char *key,size_t &start,size_t 
     return matches==1;
 }
 struct controls {
-    std::array<field,10> fields=schema();
+    std::array<field,12> fields=schema();
     bool present=false,valid=false;HMODULE checked=nullptr;
     // Loaded is not the same as feeding: the status card must not claim the
     // pass is running because a DLL happens to be in the process.
@@ -66,17 +77,17 @@ struct controls {
         if(!module){checked=nullptr;valid=false;reason="Feeder is not loaded";return;}
         if(module!=checked){
             checked=module;
-            // DLSS5-Feeder 0.15.1. Held in step with
+            // DLSS5-Feeder 1.17.0. Held in step with
             // src/core/feeder-release.js by a check in npm run payload: this pin
             // went stale across an earlier upgrade and silently killed every
             // Feeder slider in the panel.
-            const unsigned char hash[]={0x3a,0xfc,0x8e,0xfb,0x5f,0x51,0x6e,0x94,0xa2,0xa0,0x68,0xb2,0xe9,0x0e,0xae,0xd3,0x60,0xd1,0xe3,0x0c,0xa2,0xc2,0x9b,0x62,0x3e,0x0c,0xfa,0xdc,0x1f,0x05,0xd5,0x0d};
-            valid=nr_probe::hash_matches(module,297472,hash);
+            const unsigned char hash[]={0x68,0x54,0xd0,0x12,0xea,0xc3,0x07,0x02,0x1c,0xd3,0x1c,0x97,0x8b,0xaf,0xd4,0x2f,0x1e,0x22,0xc5,0xb7,0xb2,0x92,0x2c,0x80,0xe0,0xa0,0x01,0x0d,0x42,0x8a,0x3f,0xd7};
+            valid=nr_probe::hash_matches(module,329728,hash);
             wchar_t file[32768]={};DWORD n=GetModuleFileNameW(module,file,32768);
             valid=valid&&n>0&&n<32768;path=file;
             if(valid)path=path.substr(0,path.find_last_of(L"\\/")+1)+L"dlss5-feed.cfg";
         }
-        if(!valid){reason="Unsupported Feeder binary (this build drives x64 v0.15.1)";return;}
+        if(!valid){reason="Unsupported Feeder binary (this build drives x64 v1.17.0)";return;}
         std::string text;if(!read(path,text)){reason="Feeder config unavailable; let Feeder initialize";return;}
         for(auto &f:fields){size_t a,b;float v;if(locate(text,f.key,a,b,v)&&v>=f.min&&v<=f.max&&(f.step!=1||std::floor(v)==v)){f.value=v;f.available=true;}}
         // The bridge, like the work-resolution controls, is D3D11 only.
@@ -120,7 +131,7 @@ struct controls {
     }
     std::string json()const {
         std::ostringstream out;out.imbue(std::locale::classic());out<<",\"feedPresent\":"<<(present?"true":"false")<<",\"feedReason\":"<<lab_live::quoted(reason)<<",\"feedTools\":[";
-        for(size_t i=0;i<fields.size();++i){auto &f=fields[i];if(i)out<<',';out<<"{\"id\":"<<301+i<<",\"kind\":"<<f.kind<<",\"effect\":\"Feeder 0.15.1\",\"name\":"<<lab_live::quoted(f.name)<<",\"min\":"<<f.min<<",\"max\":"<<f.max<<",\"step\":"<<f.step<<",\"value\":"<<f.value<<",\"available\":"<<(present&&f.available?"true":"false")<<'}';}return out.str()+"]";
+        for(size_t i=0;i<fields.size();++i){auto &f=fields[i];if(i)out<<',';out<<"{\"id\":"<<301+i<<",\"kind\":"<<f.kind<<",\"effect\":\"Feeder 1.17.0\",\"name\":"<<lab_live::quoted(f.name)<<",\"min\":"<<f.min<<",\"max\":"<<f.max<<",\"step\":"<<f.step<<",\"value\":"<<f.value<<",\"available\":"<<(present&&f.available?"true":"false")<<'}';}return out.str()+"]";
     }
 };
 }

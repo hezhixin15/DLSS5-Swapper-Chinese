@@ -27,7 +27,10 @@
       // same-adapter, device-only D3D12 endpoint" - so it does not need
       // dgVoodoo's translation the way the Feeder route does here. OpenGL and
       // Vulkan are not on its list, and the add-on is 64-bit only.
-      if (api === 'd3d9' && target.bitness === 64 && !target.emulator) list.push('renodx');
+      // An emulator is a 64-bit DirectX program like any other, and PCSX2 was
+      // shown running this route when it was set up by hand (#359). It is
+      // offered, never recommended: the Feeder stays the suggested route.
+      if (api === 'd3d9' && target.bitness === 64) list.push('renodx');
       return list;
     }
     if (api !== 'dxgi') return [];
@@ -39,7 +42,7 @@
     // too - it is the larger half of the games with no DLSS of their own, and
     // the reason this route exists. D3D9 goes through dgVoodoo here and is a
     // separate question. 32-bit is out: the add-on is 64-bit only.
-    if (target.bitness === 64 && !target.emulator) routes.push('renodx');
+    if (target.bitness === 64) routes.push('renodx');
     return routes;
   }
   function recommendedRoute(scan, target = scan.chosen) {

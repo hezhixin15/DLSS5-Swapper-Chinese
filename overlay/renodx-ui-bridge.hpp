@@ -19,10 +19,13 @@ struct controls {
     bool enabled = true, active = false;
     std::string reason = "Bridge is off";
     HMODULE checked = nullptr;
-    bool valid = false;
+    // Which pinned build is loaded. Null means one this adapter cannot drive.
+    const nr_probe::build_pin *build = nullptr;
     const imgui_function_table *original = nullptr;
     unsigned disabled = 0;
     std::vector<bool> disabled_stack;
+    // Matched by label, so a build that renames or drops one loses that control
+    // and keeps the rest: 6.x dropped "Enable Upscaling (WIP)" and nothing else.
     std::array<field, 15> fields = {{
         {"Structure Intensity", 0}, {"Global Tone Intensity", 0},
         {"Enable DLSS Neural Rendering", 1}, {"Automatic / Character Mask", 1},
@@ -109,21 +112,56 @@ struct controls {
         if (!current->disabled_stack.empty()) { if (current->disabled_stack.back()) --current->disabled; current->disabled_stack.pop_back(); }
         current->original->EndDisabled();
     }
-    void tick(reshade::api::effect_runtime *runtime) {
+    // A build that files its controls under collapsing sections draws nothing
+    // inside a closed one, and this pass runs in a hidden window with no saved
+    // settings, so every section starts closed. Asking for them open keeps
+    // ImGui's own push/pop pairing intact - returning true for a header the
+    // original refused would leave a TreePop without its TreeNode.
+    static bool collapsing(const char *label, ImGuiTreeNodeFlags flags) {
+        return current->original->CollapsingHeader(label, flags | ImGuiTreeNodeFlags_DefaultOpen);
+    }
+    static bool collapsing2(const char *label, bool *visible, ImGuiTreeNodeFlags flags) {
+        return current->original->CollapsingHeader2(label, visible, flags | ImGuiTreeNodeFlags_DefaultOpen);
+    }
+    static bool tree_node(const char *label, ImGuiTreeNodeFlags flags) {
+        return current->original->TreeNodeEx(label, flags | ImGuiTreeNodeFlags_DefaultOpen);
+    }
+    // Which controls the hidden pass actually reached. A panel with nothing in
+    // it is otherwise silent about why, and the answer is always one of: the
+    // file is a build this adapter does not know, its code does not look the
+    // way that build's does, or the page drew fewer controls than expected.
+    std::string missing() const {
+        std::string out; unsigned found = 0;
+        for (const auto &f : fields) if (f.seen) ++found;
+        out = std::to_string(found) + "/" + std::to_string(fields.size());
+        for (const auto &f : fields) if (!f.seen) { out += out.size() ? ", " : ""; out += f.label; }
+        return out;
+    }
+    std::string announced;
+    void announce() {
+        char line[900];
+        snprintf(line, sizeof(line), "NR_LAB_BRIDGE build=%s active=%d controls=%s reason=\"%s\"",
+                 build ? build->name : "none", active ? 1 : 0, missing().c_str(), reason.c_str());
+        if (announced == line) return;
+        announced = line;
+        reshade::log::message(reshade::log::level::info, line);
+    }
+    void tick(reshade::api::effect_runtime *runtime) { decide(runtime); announce(); }
+    void decide(reshade::api::effect_runtime *runtime) {
         if (!enabled) { clear(); reason = "Bridge is off"; return; }
         HMODULE module = GetModuleHandleW(L"renodx-dlss5.addon64");
         if (!module) { clear(); reason = "RenoDX is not loaded"; return; }
-        if (module != checked) { checked = module; valid = nr_probe::hash_matches(module); }
-        if (!valid) { clear(); reason = "Unsupported RenoDX binary; requires the supplied v4.7"; return; }
+        if (module != checked) { checked = module; build = nr_probe::identify(module); }
+        if (!build) { clear(); reason = "Unsupported RenoDX binary; this build drives RenoDX 6.5.3 and v4.7"; return; }
         auto base = reinterpret_cast<unsigned char *>(module);
-        auto slot = reinterpret_cast<const imgui_function_table **>(base + 0x196ca0);
+        auto slot = reinterpret_cast<const imgui_function_table **>(base + build->slot);
         original = imgui_function_table_instance();
         if (*slot != original) { clear(); reason = "Unexpected ImGui interface; bridge refused"; return; }
         // Validate the in-memory initialization and registration sites as well
-        // as the on-disk hash. Never guess offsets for another build.
-        const unsigned char init[] = {0xb9,0x32,0x4b,0,0,0xff,0xd0,0x48,0x89,0x05,0x9a,0x2c,0x17,0};
-        const unsigned char callback[] = {0x48,0x8d,0x15,0x7d,0x45,0,0,0xff,0xd0};
-        if (memcmp(base + 0x23ff8, init, sizeof(init)) || memcmp(base + 0x2607c, callback, sizeof(callback))) {
+        // as the on-disk hash. Never guess offsets for another build: each one
+        // brings its own, and an unrecognised file never reaches this point.
+        if (memcmp(base + build->init_at, build->init, build->init_size) ||
+            memcmp(base + build->call_at, build->call, build->call_size)) {
             clear(); reason = "RenoDX code fingerprint mismatch"; return;
         }
         std::unique_lock<std::mutex> lock(invocation, std::try_to_lock);
@@ -133,11 +171,12 @@ struct controls {
         table.Button = button; table.SmallButton = small_button; table.InvisibleButton = invisible;
         table.Combo = combo; table.Combo2 = combo2;
         table.BeginDisabled = begin_disabled; table.EndDisabled = end_disabled;
+        table.CollapsingHeader = collapsing; table.CollapsingHeader2 = collapsing2; table.TreeNodeEx = tree_node;
         disabled = 0; disabled_stack.clear();
         for (auto &f : fields) f.seen = false;
         ImGui::SetNextWindowPos(ImVec2(-30000, -30000)); ImGui::SetNextWindowSize(ImVec2(600, 1000));
         ImGui::Begin("##NRLabAdapter", nullptr, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground);
-        auto atomic_slot = reinterpret_cast<void *volatile *>(base + 0x196ca0);
+        auto atomic_slot = reinterpret_cast<void *volatile *>(base + build->slot);
         if (InterlockedCompareExchangePointer(atomic_slot, &table, const_cast<imgui_function_table *>(original)) != original) {
             ImGui::End(); clear(); reason = "UI dispatch changed; bridge refused"; return;
         }
@@ -147,7 +186,7 @@ struct controls {
                 ~guard() { InterlockedCompareExchangePointer(slot, const_cast<imgui_function_table *>(old), temporary); current = nullptr; }
             } restore {atomic_slot, original, &table};
             current = this;
-            reinterpret_cast<void (*)(reshade::api::effect_runtime *)>(base + 0x2a600)(runtime);
+            reinterpret_cast<void (*)(reshade::api::effect_runtime *)>(base + build->overlay)(runtime);
         }
         ImGui::End();
         // Commands for a hidden/disabled control expire, never apply later.
@@ -162,7 +201,7 @@ struct controls {
         for (size_t i = 0; i < fields.size(); ++i) {
             const auto &f = fields[i]; if (i) out << ',';
             out << "{\"id\":" << 101+i << ",\"kind\":" << f.kind << ",\"name\":" << lab_live::quoted(f.label)
-                << ",\"effect\":\"RenoDX v4.7\",\"min\":" << f.min << ",\"max\":" << f.max
+                << ",\"effect\":\"RenoDX " << (build ? build->name : "") << "\",\"min\":" << f.min << ",\"max\":" << f.max
                 << ",\"step\":" << (f.kind == 0 ? "0.01" : "1") << ",\"value\":" << f.value << ",\"available\":" << (active && f.seen ? "true" : "false");
             if (f.kind == 4) {
                 out << ",\"options\":[";

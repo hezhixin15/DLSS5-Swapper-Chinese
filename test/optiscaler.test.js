@@ -7,6 +7,7 @@ const path = require('path');
 const opti = require('../src/core/optiscaler');
 const routes = require('../src/shared/install-routes');
 const guards = require('../src/core/install-guards');
+const renodx = require('../src/core/renodx-release');
 const ini = require('../src/core/feeder-config');
 
 test('OptiScaler is optional, gated by real DLSS, architecture and API', () => {
@@ -48,12 +49,20 @@ test('GPU requirements and process guards reject known unsupported/running targe
   assert.equal(guards.gpuModelSupported([{ name: 'NVIDIA GeForce RTX 4090', driver: '617.00' }]), false);
   assert.equal(guards.driverSupported([{ name: 'NVIDIA GeForce RTX 5080', driver: '617.00' }]), true);
   // The driver range upstream measured faulting inside NVIDIA's neural runtime
-  // is a warning of its own, independent of the OptiScaler requirements.
-  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 5090', driver: '616.56' }]), false);
-  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 5090', driver: '616.64' }]), true);
-  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 4070', driver: '616.86' }]), true);
-  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 5090', driver: '610.00' }]), false);
-  assert.equal(guards.driverNeuralFault(null), false);
+  // is a warning of its own, independent of the OptiScaler requirements - and it
+  // belongs to the consumer that faults, not to the driver. A 4.x build:
+  const four = 'd5adf82eb44b065f4c590ac91fe824bab07afea0eb9f994bde936710c8593952';
+  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 5090', driver: '616.56' }], four), false);
+  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 5090', driver: '616.64' }], four), true);
+  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 4070', driver: '616.86' }], four), true);
+  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 5090', driver: '610.00' }], four), false);
+  assert.equal(guards.driverNeuralFault(null, four), false);
+  // ...and the consumer this app ships, which upstream measured passing the same
+  // self-test on a later driver than the one this warning was written for. Every
+  // install used to open with this question; none does now.
+  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 5090', driver: '617.14' }]), false);
+  assert.equal(renodx.faults(renodx.CONSUMER.sha256), false);
+  assert.equal(renodx.faults(four), true);
   assert.equal(guards.driverNames([{ name: 'RTX 5090', driver: '616.64' }]), 'RTX 5090 - 616.64');
   // Blackwell is the requirement, not the name: the professional boards report
   // themselves as "RTX PRO 6000 Blackwell" and were refused for not being 50xx.

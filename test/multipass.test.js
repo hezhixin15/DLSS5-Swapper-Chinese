@@ -71,13 +71,15 @@ test('the route follows what the add-on says it presents on', () => {
   // modern hardware through dgVoodoo here rather than through this.
   for (const target of [
     { bitness: 32, api: 'dxgi', apiLabel: 'DirectX 12' },
-    { bitness: 64, api: 'dxgi', apiLabel: 'DirectX 12', emulator: { name: 'x' } },
     { bitness: 64, api: 'dxgi', apiLabel: 'DirectX 10' },
     { bitness: 32, api: 'd3d9' },
     { bitness: 32, api: 'ddraw' }
   ]) {
     assert.ok(!routes.routesFor(target).includes('renodx'), JSON.stringify(target));
   }
+  // An emulator is offered the route since #359: it is a 64-bit DirectX
+  // program like any other, and it was shown working when set up by hand.
+  assert.ok(routes.routesFor({ bitness: 64, api: 'dxgi', apiLabel: 'DirectX 12', emulator: { name: 'x' } }).includes('renodx'));
 });
 
 

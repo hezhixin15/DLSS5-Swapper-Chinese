@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const { t, setLang, getLang, dirOf, LANGS } = window.i18n;
-const state = { games: [], recents: [], history: [], newDlss: null, log: [], theme: 'light', lang: 'en', logo: {}, groupGamesByStore: true };
+const state = { games: [], recents: [], history: [], newDlss: null, log: [], theme: 'light', skin: 'one', rail: 'off', lang: 'en', logo: {}, groupGamesByStore: true };
 const filters = { query: '', api: 'all', dlss: 'all', addon: 'all' };
 const gameFilters = window.gameFilters;
 
@@ -62,8 +62,19 @@ function setStatus(text, percent) {
 
 // ---------------- views ----------------
 
+// Theme 2 brings its own frame - a command bar, a dock, a palette - and its
+// own page for a game. It is built when that skin is chosen and taken back out
+// when it is not, so theme 1 never grows a control it was not designed with.
+function syncSkinChrome() {
+  if (state.skin === 'two') window.theme2?.enable();
+  else window.theme2?.disable();
+}
+
 function show(view) {
   if (view !== 'chat') window.chatUi?.stopPolling?.();
+  // Theme 2 opens a game as a full page inside the content area rather than
+  // over the app, so the nav is still reachable behind it.
+  if (sheetGame && !jobRunning && document.documentElement.dataset.skin === 'two') closeSheet();
   for (const s of document.querySelectorAll('.view')) s.classList.toggle('active', s.id === 'view-' + view);
   for (const b of document.querySelectorAll('.nav-item')) b.classList.toggle('active', b.dataset.view === view);
   if (view === 'history') renderHistory();
@@ -421,9 +432,29 @@ $('dlgSave').onclick = async () => {
 };
 
 
+// Theme 1 is the design the app has always had; theme 2 is the modern one.
+// Both are whole skins, not a colour switch - the light/dark toggle keeps
+// working inside either of them.
+function skinPicker(current) {
+  const card = (id, name, description, swatch) => `
+    <button type="button" class="skin-card" data-skin-choice="${id}" aria-pressed="${current === id}">
+      <span class="skin-swatch skin-swatch-${swatch}" aria-hidden="true"><i></i><i></i><i></i></span>
+      <b>${esc(name)}</b><small>${esc(description)}</small>
+    </button>`;
+  return `
+    <div class="set-row" style="display:block">
+      <div class="k">${t('setSkins')}</div>
+      <div class="v" style="margin-bottom:12px">${t('setSkinsHint')}</div>
+      <div class="skin-picker" role="group" aria-label="${esc(t('setSkins'))}">
+        ${card('one', t('skinOne'), t('skinOneHint'), 'one')}
+        ${card('two', t('skinTwo'), t('skinTwoHint'), 'two')}
+      </div>
+    </div>`;
+}
+
 async function renderSettings() {
   const info = await window.lab.settings();
-  $('settings').innerHTML = `
+  $('settings').innerHTML = skinPicker(info.skin === 'two' ? 'two' : 'one') + `
     <div class="set-row"><div><div class="k">${t('setGroupGames')}</div>
       <div class="v" id="setGroupGamesHint">${t('setGroupGamesHint')}</div></div>
       <button class="setting-switch" id="setGroupGames" type="button" role="switch"
@@ -435,6 +466,12 @@ async function renderSettings() {
       <button class="setting-switch" id="setNotices" type="button" role="switch"
         aria-checked="${(await window.lab.communityNoticeSettings()).on ? 'true' : 'false'}"
         aria-label="${t('setNotices')}" aria-describedby="setNoticesHint">
+        <span class="knob"></span>
+      </button></div>
+    <div class="set-row"><div><div class="k">${t('setSafeGraphics')}</div>
+      <div class="v" id="setSafeGraphicsHint">${t('setSafeGraphicsHint')}</div></div>
+      <button class="setting-switch" id="setSafeGraphics" type="button" role="switch"
+        aria-checked="${info.safeGraphics === true}" aria-label="${t('setSafeGraphics')}" aria-describedby="setSafeGraphicsHint">
         <span class="knob"></span>
       </button></div>
     <div class="set-row"><div><div class="k">${t('setTray')}</div>
@@ -506,6 +543,29 @@ async function renderSettings() {
     try {
       const answer = await window.lab.communityNoticeSettings(on);
       toggle.setAttribute('aria-checked', String(answer.on));
+    } finally { toggle.disabled = false; }
+  };
+  for (const button of document.querySelectorAll('[data-skin-choice]')) {
+    button.onclick = async () => {
+      const choice = button.dataset.skinChoice;
+      if (choice === state.skin) return;
+      state.skin = choice;
+      document.documentElement.dataset.skin = choice;
+      for (const other of document.querySelectorAll('[data-skin-choice]')) {
+        other.setAttribute('aria-pressed', String(other.dataset.skinChoice === choice));
+      }
+      syncSkinChrome();
+      try { await window.lab.setSkin(choice); } catch { /* the app still wears it now */ }
+      if (sheetGame) openSheet(sheetGame.dir, true);
+    };
+  }
+  $('setSafeGraphics').onclick = async () => {
+    const toggle = $('setSafeGraphics');
+    const on = toggle.getAttribute('aria-checked') !== 'true';
+    toggle.disabled = true;
+    try {
+      const answer = await window.lab.setSafeGraphics(on);
+      toggle.setAttribute('aria-checked', String(answer?.on === true));
     } finally { toggle.disabled = false; }
   };
   $('setTray').onclick = async () => {
@@ -827,9 +887,9 @@ function installOptions(d, pick, dir) {
   const apiHint = `<div class="emu-note" id="apiHint"><span>${t('apiOverrideHint')}</span>${api.api === 'vulkan' && !opti ? `<span>${t('apiVulkanHint')}</span>` : ''}</div>`;
   // Keep the picker available even when automatic detection yields DX10 or an
   // unsupported renderer. Otherwise the user cannot correct that detection.
-  if (!routes.length) return `<div class="install-options">${apiField}</div>${notesBox([apiHint, `<div class="emu-note">${t('unsupportedRendererHint')}</div>`, warning, crashBanner], Boolean(warning || crashBanner))}`;
+  if (!routes.length) return `<div class="install-options" data-title="${esc(t('sheetSetup'))}">${apiField}</div>${notesBox([apiHint, `<div class="emu-note">${t('unsupportedRendererHint')}</div>`, warning, crashBanner], Boolean(warning || crashBanner))}`;
   return `
-    <div class="install-options">
+    <div class="install-options" data-title="${esc(t('sheetSetup'))}">
       ${apiField}
       <label><span>${t('fBackend')}</span><select id="backendChoice" aria-describedby="backendHint">
         <option value="reshade"${opti ? '' : ' selected'}>${t('backendReShade')}</option>
@@ -838,6 +898,10 @@ function installOptions(d, pick, dir) {
       ${!opti ? `<label><span>${t('fRoute')}</span><select id="routeChoice">${routes.filter(item => item !== 'optiscaler').map((item) =>
         `<option value="${item}"${item === route ? ' selected' : ''}>${t(item === 'feeder' ? 'routeFeeder' : item === 'renodx' ? 'routeRenodx' : 'routeNative')}</option>`).join('')}</select></label>
       ` : ''}
+      ${!opti && RESHADE_PROXY_APIS.includes(api.api) && api.label !== 'DirectX 12' ? `<label><span>${t('fReshadeFile')}</span><select id="reshadeProxy">
+        <option value="dxgi"${pick.reshadeProxy !== 'd3d11' ? ' selected' : ''}>dxgi.dll</option>
+        <option value="d3d11"${pick.reshadeProxy === 'd3d11' ? ' selected' : ''}>d3d11.dll</option>
+      </select></label>` : ''}
       ${opti ? `<label><span>${t('fOptiBuild')}</span><select id="optiBuild"></select></label>` : ''}
     </div>
     ${notesBox([
@@ -846,6 +910,7 @@ function installOptions(d, pick, dir) {
         ${optiReason ? `<span>${t(optiReason)}</span>` : ''}
         ${route === 'native' ? `<span>${t('nativeEffectsHint')}</span>` : ''}
         ${route === 'renodx' ? `<span>${t('routeRenodxHint')}</span>` : ''}
+        ${!opti && RESHADE_PROXY_APIS.includes(api.api) && pick.reshadeProxy === 'd3d11' ? `<span>${t(api.api === 'dxgi' ? 'reshadeProxyHint' : 'reshadeProxyWrapHint')}</span>` : ''}
         ${opti && (api.api === 'vulkan' || api.label === 'DirectX 11') ? `<span>${t('optiBridgeHint')}</span>` : ''}
         ${opti && api.api === 'vulkan' ? `<span>${t('optiVulkanHint')}</span>` : ''}
       </div>`,
@@ -965,6 +1030,9 @@ window.refreshSheet = dir => { if (sheetGame && sheetGame.dir === dir) openSheet
 async function fillSheetCommunity(g, dir) {
   const box = $('sheetCommunity');
   if (!box) return;
+  // Before anybody has opened Community, this asks the server nothing (#358).
+  const opted = await window.lab.communityOptedIn().catch(() => null);
+  if (!opted?.on) return;
   const answer = await window.lab.communityForGame(dir).catch(() => null);
   if (sheetGame !== g || !answer?.ok || !answer.supported || !$('sheetCommunity')) return;
   const card = answer.card;
@@ -1025,7 +1093,11 @@ async function openSheet(dir, keepLog = false) {
   // Filled in once the sheet is on screen, so the sheet never waits on the network.
   queueMicrotask(() => fillSheetCommunity(g, dir));
 
-  $('sheet').innerHTML = `
+  // Theme 2 draws this page itself: same facts, same controls, same ids - a
+  // different page rather than a different program.
+  const sheetContext = { d, game: g, art: info, cover, hero, pick, dir, upToDate, inGameDlss, showExeFact };
+  const modernSheet = state.skin === 'two' && window.theme2;
+  $('sheet').innerHTML = modernSheet ? window.theme2.sheetMarkup(sheetContext) : `
     <div class="hero${hero ? '' : ' empty'}">
       ${hero ? `<img src="${hero}" alt="">` : ''}
       <button class="close" id="sheetClose"><svg viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
@@ -1047,7 +1119,7 @@ async function openSheet(dir, keepLog = false) {
       <div class="sheet-community" id="sheetCommunity" hidden></div>
       ${installOptions(d, pick, dir)}
 
-      <div class="specs">
+      <div class="specs" data-title="${esc(t('sheetFacts'))}">
         ${showExeFact && pick ? spec(t('fExe'), esc(pick.rel.split(/[\/]/).pop()), null, pick.rel) : ''}
         ${pick ? spec(t('fArchitecture'), `${pick.bitness || '?'}-bit`) : ''}
         ${spec(t('fApi'), esc((pick && selectedApi(pick, dir).label) || reasonText(d.reason) || '—'), pick && selectedApi(pick, dir).api === 'dxgi' ? 'on' : 'off')}
@@ -1060,7 +1132,7 @@ async function openSheet(dir, keepLog = false) {
             : t('notInstalled')), d.reshade.installed ? 'on' : 'off')}
       </div>
 
-      ${d.files.length ? `<div class="filelist">${d.files.map((f) =>
+      ${d.files.length ? `<div class="filelist" data-title="${esc(t('sheetFiles'))}">${d.files.map((f) =>
         `<div class="filerow"><span class="f">${esc(f.rel)}</span><span class="v">${esc(f.version || '—')}</span></div>`).join('')}</div>` : ''}
 
       <div class="sheet-actions">
@@ -1068,9 +1140,10 @@ async function openSheet(dir, keepLog = false) {
         <button class="btn-restore" id="doRestore"${d.hasBackup ? '' : ' disabled'}>${t('restore')}</button>
       </div>
       <div class="job-toolbar"><button class="ghost sm ${window.communityUi?.reportFor?.(dir) ? 'shared' : 'accent'}" id="shareResult">${window.communityUi?.reportFor?.(dir) ? t('menuCommunityEdit') : t('menuCommunity')}</button><button class="ghost sm" id="copyJob"${jobLines.length ? '' : ' disabled'}>${t('copyLog')}</button><button class="ghost sm" id="saveDiag">${t('saveDiagnostics')}</button></div>
-      <div class="job" id="job" role="status" aria-live="polite">${esc(jobLines.join('\n') || t('jobReady'))}</div>
+      <div class="job" id="job" role="status" aria-live="polite" data-title="${esc(t('sheetActivity'))}">${esc(jobLines.join('\n') || t('jobReady'))}</div>
     </div>`;
 
+  if (modernSheet) window.theme2.wireSheet(sheetContext);
   $('sheetClose').onclick = closeSheet;
   // The same thing the right-click menu offers, put where somebody who has
   // just installed into a game is already looking.
@@ -1102,6 +1175,18 @@ async function openSheet(dir, keepLog = false) {
       $('apiChoice')?.focus();
     }
   };
+  const proxySelect = $('reshadeProxy');
+  if (proxySelect) proxySelect.onchange = async () => {
+    document.querySelectorAll('#sheet select, #doInstall, #doRestore, #exeSelect').forEach(e => { e.disabled = true; });
+    let result;
+    try { result = await window.lab.setReshadeProxy(dir, pick.path, proxySelect.value); }
+    catch { result = { ok: false, code: 'errApiSave' }; }
+    if (!result?.ok) jobLog(t(result?.code || 'errApiSave'));
+    if (sheetGame?.dir === dir) {
+      await openSheet(dir, true);
+      $('reshadeProxy')?.focus();
+    }
+  };
   // Filled in after the sheet exists - it was being written before, when
   // $('optiBuild') was still null, so the select rendered and stayed empty.
   // Only one game at a time is ever pinned to an older build, and only to one
@@ -1110,8 +1195,12 @@ async function openSheet(dir, keepLog = false) {
   if (buildSelect) {
     window.lab.optiscalerBuilds(dir).then(({ builds, current }) => {
       if ($('optiBuild') !== buildSelect) return;   // the sheet moved on
-      buildSelect.innerHTML = builds.map((v, i) =>
-        `<option value="${esc(v)}"${v === current ? ' selected' : ''}>${esc(v)}${i === 0 ? ` · ${t('optiBuildCurrent')}` : ''}</option>`).join('');
+      buildSelect.innerHTML = builds.map((build, i) => {
+        // An older app sent bare strings; a build is an object with a label now.
+        const version = typeof build === 'string' ? build : build.version;
+        const label = typeof build === 'string' ? build : (build.label || build.version);
+        return `<option value="${esc(version)}"${version === current ? ' selected' : ''}>${esc(label)}${i === 0 ? ` · ${t('optiBuildCurrent')}` : ''}</option>`;
+      }).join('');
       buildSelect.onchange = async () => {
         buildSelect.disabled = true;
         try { await window.lab.setOptiscalerBuild(dir, buildSelect.value); }
@@ -1607,7 +1696,10 @@ document.addEventListener('keydown', (e) => {
 });
 // Most job events are progress markers read as codes. The few that are
 // advice for the person are shown in their language instead.
-const SPOKEN_JOB_CODES = new Set(['historySaveWarning', 'driverNeuralFault', 'oldShaderCompiler', 'overlaySkipped', 'feedVkLayerReady', 'neuralModelKept', 'rivalConsumerSetAside', 'crashRiskAccepted']);
+// DirectX 11 games that ignore dxgi.dll (#328), and the wrapped DirectX 8/9
+// ones that become DirectX 11 inside dgVoodoo (#343).
+const RESHADE_PROXY_APIS = ['dxgi', 'd3d8', 'd3d9', 'ddraw'];
+const SPOKEN_JOB_CODES = new Set(['historySaveWarning', 'driverNeuralFault', 'oldShaderCompiler', 'overlaySkipped', 'feedVkLayerReady', 'neuralModelKept', 'rivalConsumerSetAside', 'overlayNotForRoute', 'multipassNext', 'forwarderRetired', 'optiDownloading', 'optiVerified', 'restoreRecovered']);
 window.lab.onJob((e) => jobLog(SPOKEN_JOB_CODES.has(e.code)
   ? t(e.code, ...Object.values(e.params || {}))
   : `${e.code} ${JSON.stringify(e.params)}`));
@@ -1627,8 +1719,12 @@ document.addEventListener('drop', (e) => e.preventDefault());
 (async () => {
   const boot = await window.lab.boot();
   state.theme = boot.theme || 'light';
+  state.skin = boot.skin === 'two' ? 'two' : 'one';
   state.groupGamesByStore = boot.groupGamesByStore !== false;
   document.documentElement.dataset.theme = state.theme;
+  document.documentElement.dataset.skin = state.skin;
+  state.rail = boot.rail === 'on' ? 'on' : 'off';
+  syncSkinChrome();
   applyLang(boot.lang || 'en');
   // After applyLang, so the guide is drawn in the language the app settled on
   // rather than the raw code that came out of the state file.

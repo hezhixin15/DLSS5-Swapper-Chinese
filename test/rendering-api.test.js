@@ -34,7 +34,9 @@ test('manual DX11/DX12 use dxgi but route eligibility follows the selected label
     assert.deepEqual(routes.routesFor(api.effective(target, 'vulkan')), ['feeder', 'optiscaler']);
   }
   assert.deepEqual(routes.routesFor(api.effective({ bitness: 32 }, 'd3d12')), ['feeder']);
-  assert.deepEqual(routes.routesFor(api.effective({ bitness: 64, emulator: {} }, 'd3d12')), ['feeder']);
+  // #359: the multipass route is offered to an emulator as well, and it is
+  // still the Feeder that is recommended.
+  assert.deepEqual(routes.routesFor(api.effective({ bitness: 64, emulator: {} }, 'd3d12')), ['feeder', 'renodx']);
 });
 
 test('selection is an allowlist; all displayed choices resolve and unknown values fail', () => {

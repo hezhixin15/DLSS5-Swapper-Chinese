@@ -13,15 +13,49 @@ const { safePath } = require('./file-journal');
 //
 // This is not the "put your own DLL in the components folder" that #191 asked
 // for and that the folder deliberately refuses. Every entry here is pinned by
-// URL and by digest exactly as the single one was; there is simply a second
+// URL and by digest exactly as the single one was; there is simply more than
 // one, and a game may name it. Nothing unverified becomes installable.
+//
+// Two lineages, not one line of versions. Dagherbou's build reaches the model
+// through a small forwarder DLL and carries its own colour work - the highlight
+// proxy, multi-point exposure calibration, the game's live exposure. wilsjo2's
+// pre-SR fork runs the model before the upscaler with independent controls per
+// pass, squeezes the periphery to spend less on it, and rebuilds lighting and
+// colour when the model runs below 100%; it opens the runtime directly, so it
+// has no forwarder at all - and a leftover one from the other build stops its
+// pass without saying so, which is why installing it clears one away. The build
+// pinned here is the DLSS5-Feeder author's fork of it, which fixes what the
+// model is handed below 100% and the motion-vector scale in games that upscale,
+// the two things that made every resolution under 100% flicker.
+const FORWARDED = Object.freeze({
+  forwarder: 'nvngx.dll_dlssnr.dll',
+  notes: 'READ ME - DLSS Neural Rendering.txt',
+  licenses: Object.freeze(['DirectX_LICENSE.txt', 'FidelityFX_v2_LICENSE.md', 'RenoDX_ATTRIBUTION.txt', 'XeSS_LICENSE.txt'])
+});
+const DIRECT = Object.freeze({
+  forwarder: null,
+  notes: 'INSTALL-DLSSNR.md',
+  // Its GPL text rides in the archive rather than being fetched beside it.
+  gpl: 'LICENSE',
+  licenses: Object.freeze(['DirectX_LICENSE.txt', 'FidelityFX_v1_LICENSE.md', 'FidelityFX_v2_LICENSE.md',
+    'PeripheralWarp_LICENSE.txt', 'RenoDX_ATTRIBUTION.txt', 'XeSS_LICENSE.txt'])
+});
 const RELEASES = Object.freeze([
   Object.freeze({
     version: '0.2.0-patch1',
     url: 'https://github.com/Dagherbou/OptiScaler_DLSSNR/releases/download/v0.2.0-patch1/OptiScaler-DLSSNR-v0.2.0-onimusha-fix.zip',
     sha256: '5db547216fa8a7dbd8ab0a193da1e3bce0ea4bd71f91189afa4ed2ede8bb9561',
     licenseUrl: 'https://raw.githubusercontent.com/Dagherbou/OptiScaler_DLSSNR/393e070/LICENSE',
-    licenseHash: '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'
+    licenseHash: '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986',
+    layout: FORWARDED
+  }),
+  // The pre-SR multipass fork, pinned at the Feeder author's fixed build.
+  Object.freeze({
+    version: '0.8.92-presr',
+    label: '0.8.92 - pre-SR multipass',
+    url: 'https://github.com/jlrouzies-fr/OptiScaler-DLSSNR-PreSR-Multipass/releases/download/v0.8.92/OptiScaler-NR-v0.8.92.zip',
+    sha256: '9605352af2378eeb5ef96aedf69c648b36152eea40a388cb5413ca6a408bf728',
+    layout: DIRECT
   }),
   // What 2.2.1 shipped. Same archive layout, so it satisfies the same
   // validation; kept for the titles the newer build regressed on.
@@ -30,7 +64,8 @@ const RELEASES = Object.freeze([
     url: 'https://github.com/Dagherbou/OptiScaler_DLSSNR/releases/download/v0.1.1.5-dlssnr/OptiScaler-DLSSNR-v0.1.1.5-dlssnr.zip',
     sha256: '735b10b4077bc187ba4d07d607e864349aca386344c6126aba61ced746d27ece',
     licenseUrl: 'https://raw.githubusercontent.com/Dagherbou/OptiScaler_DLSSNR/393e070/LICENSE',
-    licenseHash: '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'
+    licenseHash: '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986',
+    layout: FORWARDED
   })
 ]);
 const RELEASE = RELEASES[0];
@@ -43,13 +78,15 @@ const LIBRARIES = [
   'amd_fidelityfx_loader_dx12.dll', 'amd_fidelityfx_framegeneration_dx12.dll',
   'D3D12_OptiScaler/D3D12Core.dll'
 ];
-const LICENSES = ['DirectX_LICENSE.txt', 'FidelityFX_v2_LICENSE.md', 'RenoDX_ATTRIBUTION.txt', 'XeSS_LICENSE.txt'];
+// The GPL text is written under one name whichever build supplied it.
+const GPL_AS = 'OptiScaler/licenses/LICENSE.GPL-3.0.txt';
 function fail(code, message = code) { return Object.assign(new Error(message), { code }); }
-function validatePayload(root) {
-  for (const rel of ['OptiScaler.dll', 'nvngx.dll_dlssnr.dll', ...LIBRARIES.map(f => 'OptiScaler/' + f)]) {
+function validatePayload(root, release = RELEASE) {
+  const layout = release.layout;
+  for (const rel of ['OptiScaler.dll', layout.forwarder, ...LIBRARIES.map(f => 'OptiScaler/' + f)].filter(Boolean)) {
     if (pe.getBitness(safePath(root, rel)) !== 64) throw fail('errOptiPayload');
   }
-  for (const rel of ['OptiScaler.ini', 'READ ME - DLSS Neural Rendering.txt', ...LICENSES.map(f => 'Licenses/' + f)]) {
+  for (const rel of ['OptiScaler.ini', layout.notes, layout.gpl, ...layout.licenses.map(f => 'Licenses/' + f)].filter(Boolean)) {
     if (!fs.existsSync(safePath(root, rel))) throw fail('errOptiPayload');
   }
 }
@@ -61,9 +98,13 @@ async function ensureOptiScaler(cacheRoot, version) {
   // Re-extract verified bytes on every install. The installer below copies an
   // explicit file list, not unknown files that may have appeared in the cache.
   await extractZip(archive, { dir: base });
-  const license = path.join(base, 'OptiScaler-GPL-3.0.txt');
-  if (!cached(license, release.licenseHash)) await fetchVerified(release.licenseUrl, release.licenseHash, license);
-  validatePayload(base);
+  // One build publishes its licence beside the archive; the other carries it
+  // inside. Either way what reaches the game is verified bytes.
+  if (release.licenseUrl) {
+    const license = path.join(base, 'OptiScaler-GPL-3.0.txt');
+    if (!cached(license, release.licenseHash)) await fetchVerified(release.licenseUrl, release.licenseHash, license);
+  }
+  validatePayload(base, release);
   return base;
 }
 function hookFor(api) { return api === 'vulkan' ? 'winmm.dll' : 'dxgi.dll'; }
@@ -86,13 +127,15 @@ function configure(text, target) {
   }
   return out;
 }
-function copyPlan(root, api) {
+function copyPlan(root, api, release = RELEASE) {
+  const layout = release.layout;
   return [
-    ['OptiScaler.dll', hookFor(api)], ['nvngx.dll_dlssnr.dll', 'nvngx.dll_dlssnr.dll'],
+    ['OptiScaler.dll', hookFor(api)],
+    ...(layout.forwarder ? [[layout.forwarder, layout.forwarder]] : []),
     ...LIBRARIES.map(f => ['OptiScaler/' + f, 'OptiScaler/' + f]),
-    ...LICENSES.map(f => ['Licenses/' + f, 'OptiScaler/licenses/' + f]),
-    ['OptiScaler-GPL-3.0.txt', 'OptiScaler/licenses/LICENSE.GPL-3.0.txt'],
-    ['READ ME - DLSS Neural Rendering.txt', 'OptiScaler/README-DLSSNR.txt']
+    ...layout.licenses.map(f => ['Licenses/' + f, 'OptiScaler/licenses/' + f]),
+    [layout.gpl || 'OptiScaler-GPL-3.0.txt', GPL_AS],
+    [layout.notes, 'OptiScaler/README-DLSSNR.txt']
   ].map(([from, to]) => ({ from: safePath(root, from), to }));
 }
 function checkConflicts(gameDir, exePath, manifest, api) {
@@ -128,19 +171,38 @@ function checkConflicts(gameDir, exePath, manifest, api) {
     if (!added.has(rel.toLowerCase()) && fs.existsSync(safePath(gameDir, rel))) throw fail('errOptiConflict', `Pre-existing OptiScaler component: ${rel}`);
   }
 }
+// The forwarder belongs to one lineage only. Left beside a build that opens the
+// runtime directly, the neural pass quietly does nothing - upstream lists it
+// with FinishedPicture and a wrong TargetProcessName as the three settings that
+// stop the pass without a word in any log. It is retired the way any replaced
+// file is, so Restore originals still puts the game back exactly as it was.
+async function retireForwarder(manifest, gameDir, exeDir, log) {
+  const { trackBeforeWrite, saveActiveManifest } = require('./apply');
+  const file = path.join(exeDir, FORWARDED.forwarder);
+  if (!fs.existsSync(file)) return;
+  const rel = await trackBeforeWrite(manifest, gameDir, file, { kind: 'optiscaler' });
+  await saveActiveManifest(gameDir, manifest);
+  await fs.promises.chmod(file, 0o666).catch(() => {});
+  await fs.promises.unlink(file);
+  log({ code: 'forwarderRetired', params: { rel } });
+}
 async function install(config, log) {
   const { beginManifest, copyTracked, writeTracked, saveActiveManifest } = require('./apply');
   const { gameDir, exePath, api, optiRoot, source } = config;
-  validatePayload(optiRoot);
+  // Which build this game asked for. #238 gave every game its own choice, and
+  // the manifest recorded the default no matter what was installed.
+  const release = releaseFor(config.optiVersion);
+  validatePayload(optiRoot, release);
   const nr = source.payload.find(f => f.name.toLowerCase() === 'nvngx_dlssnr.dll');
   if (!nr || pe.getBitness(nr.path) !== 64) throw fail('errNoNeuralRuntime');
   const manifest = beginManifest(gameDir, exePath, api);
   manifest.route = 'optiscaler';
   manifest.game.bitness = 64;
   manifest.game.apiLabel = config.apiLabel;
-  manifest.optiscaler = { version: RELEASE.version, hook: hookFor(api) };
+  manifest.optiscaler = { version: release.version, hook: hookFor(api) };
   const exeDir = path.dirname(exePath);
-  for (const item of copyPlan(optiRoot, api)) {
+  if (!release.layout.forwarder) await retireForwarder(manifest, gameDir, exeDir, log);
+  for (const item of copyPlan(optiRoot, api, release)) {
     const rel = await copyTracked(manifest, gameDir, item.from, path.join(exeDir, item.to), { kind: 'optiscaler' });
     log({ code: 'added', params: { rel } });
   }

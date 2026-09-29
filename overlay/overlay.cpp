@@ -13,7 +13,7 @@
 
 // SPDX-License-Identifier: MIT
 // Exact Chromium UI from the app, transported as interactive pixels. This add-on
-// does NOT implement NVIDIA DLSS. The automatic v4.7 adapter delegates real
+// does NOT implement NVIDIA DLSS. The automatic per-build adapter delegates real
 // settings to RenoDX's original UI callback; unsupported masks/models stay off.
 
 #include <imgui.h>
@@ -301,6 +301,11 @@ void draw(reshade::api::effect_runtime *runtime) {
         s.last_status.clear();
     }
     bridge.commands.clear();
+#ifdef LAB_OVERLAY_SMOKE
+    // The isolated host has no app to connect to, and the whole point of a smoke
+    // run is to see what the bridge makes of the RenoDX build beside it.
+    s.nr.tick(runtime);
+#endif
     if (bridge.connected() && bridge.nr_peer) s.nr.tick(runtime);
     if (bridge.connected() && bridge.feed_peer) s.feed.tick(runtime->get_device()->get_api()==reshade::api::device_api::d3d11);
     if (bridge.connected() && bridge.live_peer && GetTickCount64() >= s.telemetry_at) {
@@ -430,7 +435,7 @@ void controls(reshade::api::effect_runtime *runtime) {
     ImGui::TextWrapped("Optional compact overlay. Choose its hotkey on the Overlay page in DLSS 5 Swapper (default F8). Home keeps the original tools available.");
     if (ImGui::Button("Open compact overlay")) { panel_open = true; runtime->open_overlay(false, reshade::api::input_source::none); }
     ImGui::TextWrapped("Keep DLSS 5 Swapper open. Drag the panel header to move it. Escape closes only the compact panel. While the panel is open the game receives no mouse or keyboard input.");
-    ImGui::TextWrapped("The compact panel automatically connects to the verified v4.7 build using an experimental adapter. It redirects RenoDX's UI dispatch temporarily; unsupported builds are refused. Original settings are saved by RenoDX.");
+    ImGui::TextWrapped("The compact panel automatically connects to a verified RenoDX build using an experimental adapter. It redirects RenoDX's UI dispatch temporarily; unsupported builds are refused. Original settings are saved by RenoDX.");
 }
 void compact_draw(reshade::api::effect_runtime *runtime) {
 #ifdef LAB_RENODX_PROBE
@@ -500,7 +505,7 @@ extern "C" __declspec(dllexport) bool AddonInit(HMODULE addon, HMODULE reshade_m
     reshade::register_event<reshade::addon_event::reshade_reloaded_effects>(reloaded);
     reshade::register_event<reshade::addon_event::reshade_overlay>(compact_draw);
     registered = true;
-    reshade::log::message(reshade::log::level::debug, "DLSS 5 Swapper shared surface registered. RenoDX v4.7 UI adapter connects automatically, is experimental and hash-pinned. Keep DLSS 5 Swapper open.");
+    reshade::log::message(reshade::log::level::debug, "DLSS 5 Swapper shared surface registered. RenoDX UI adapter connects automatically, is experimental and hash-pinned. Keep DLSS 5 Swapper open.");
     return true;
 }
 extern "C" __declspec(dllexport) void AddonUninit(HMODULE addon, HMODULE reshade_module) {

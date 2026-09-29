@@ -69,7 +69,7 @@ window.mountOverlayLive = (root, { designOnly = false } = {}) => {
     ['NR Preset',4,0,0,3,['Default','Preset #1','Preset #2','Preset #3']],
     ['NR Style',4,0,0,2,['Default','Natural','Cinematic']],
     ['Depth Convention',4,0,0,2,['Use game NGX flag','Force normal depth','Force inverted depth']]
-  ].map(([name,kind,value,min,max,options],i)=>({id:101+i,name,kind,value,min,max,options,step:kind===0?.01:1,available:true,effect:'RenoDX v4.7'})) };
+  ].map(([name,kind,value,min,max,options],i)=>({id:101+i,name,kind,value,min,max,options,step:kind===0?.01:1,available:true,effect:'RenoDX 6.5.3'})) };
   let status = sample, epoch = 0, preview = true, connectedOnce = false, autoEpoch = 0;
   // Only reasons worth reading. While the bridge works the badge in the
   // header already says CONNECTED, so the line below it stays out of sight.
@@ -202,9 +202,9 @@ window.mountOverlayLive = (root, { designOnly = false } = {}) => {
       const toggle=el('button','ol-model',OL_T('Show RenoDX extras','عرض إضافات RenoDX','显示 RenoDX 扩展项'));extra.before(toggle);extra.hidden=true;
       toggle.onclick=()=>{extra.hidden=!extra.hidden;section.hidden=!extra.hidden;toggle.textContent=extra.hidden?OL_T('Show RenoDX extras','عرض إضافات RenoDX','显示 RenoDX 扩展项'):OL_T('Show Feeder controls','عرض أدوات Feeder','显示 Feeder 控制项');};
     }
-    panel.querySelector('footer').textContent = status===sample?OL_T('Interactive design preview only. Changes here do not affect a game. The installed overlay connects automatically to the verified RenoDX v4.7 build.','معاينة تصميم تفاعلية فقط. التغييرات هنا لا تؤثر على اللعبة. الأوفرلاي المثبّت يتصل تلقائياً بإصدار RenoDX v4.7 الموثّق.','仅为交互式设计预览。此处的更改不会影响游戏。已安装的叠加层会自动连接到经校验的 RenoDX v4.7 版本。'):status?.nrAvailable
-      ? OL_T('Live RenoDX v4.7 settings. A/B/C select NR Style, not AI models. Scroll More Controls; click a number to type. Home keeps the original tools available.','إعدادات RenoDX v4.7 مباشرة. A/B/C تختار نمط NR وليس نماذج الذكاء الاصطناعي. مرّر إلى التحكم الإضافي؛ انقر رقماً للكتابة. يظل Home يُبقي الأدوات الأصلية متاحة.','RenoDX v4.7 实时设置。A/B/C 选择的是 NR 风格，而非 AI 模型。滚动查看更多控制项；点击数字可直接输入。Home 键可保留原有工具。')
-      : OL_T('Waiting for the verified RenoDX v4.7 build. Connection is automatic; unsupported builds are refused. Original tools remain available.','في انتظار إصدار RenoDX v4.7 الموثّق. الاتصال تلقائي؛ الإصدارات غير المدعومة تُرفض. الأدوات الأصلية تبقى متاحة.','正在等待经校验的 RenoDX v4.7 版本。连接会自动完成；不支持的版本将被拒绝。原有工具仍可使用。');
+    panel.querySelector('footer').textContent = status===sample?OL_T('Interactive design preview only. Changes here do not affect a game. The installed overlay connects automatically to the verified RenoDX build.','معاينة تصميم تفاعلية فقط. التغييرات هنا لا تؤثر على اللعبة. الأوفرلاي المثبّت يتصل تلقائياً بإصدار RenoDX الموثّق.','仅为交互式设计预览。此处的更改不会影响游戏。已安装的叠加层会自动连接到经校验的 RenoDX 版本。'):status?.nrAvailable
+      ? OL_T('Live RenoDX settings. A/B/C select NR Style, not AI models. Scroll More Controls; click a number to type. Home keeps the original tools available.','إعدادات RenoDX مباشرة. A/B/C تختار نمط NR وليس نماذج الذكاء الاصطناعي. مرّر إلى التحكم الإضافي؛ انقر رقماً للكتابة. يظل Home يُبقي الأدوات الأصلية متاحة.','RenoDX 实时设置。A/B/C 选择的是 NR 风格，而非 AI 模型。滚动查看更多控制项；点击数字可直接输入。Home 键可保留原有工具。')
+      : OL_T('Waiting for the verified RenoDX build. Connection is automatic; a build this overlay does not know is refused. Original tools remain available.','في انتظار إصدار RenoDX الموثّق. الاتصال تلقائي؛ الإصدارات غير المدعومة تُرفض. الأدوات الأصلية تبقى متاحة.','正在等待经校验的 RenoDX 版本。连接会自动完成；不支持的版本将被拒绝。原有工具仍可使用。');
   }
   function build() {
     window.mountOverlayPanel(root);
@@ -224,7 +224,7 @@ window.mountOverlayLive = (root, { designOnly = false } = {}) => {
         sample.feedPresent=!sample.feedPresent;
         sample.feedReason=OL_T('Design preview only. Feeder cfg controls; work resolution, filter and sharpness require DX11.','معاينة تصميم فقط. أدوات cfg لـ Feeder؛ دقة العمل والمرشح والحدة تتطلب DX11.','仅为设计预览。此处为 Feeder cfg 控制项；工作分辨率、滤镜与锐度需要 DX11。');
         sample.badge=false;
-        sample.feedTools=[['Feeder enabled (original panel)',1,1,0,1],['Work resolution (%)',0,100,50,100],['Work sharpness',0,.3,0,1],['Motion scale X',0,1,-2,2],['Motion scale Y',0,1,-2,2],['HDR contract',0,-1,-1,1],['Depth convention',0,-1,-1,1],['Work upscale',0,0,0,2],['HDR10 bridge',0,-1,-1,1],['HDR paper white (nits)',0,203,50,1000]].map(([name,kind,value,min,max],i)=>({id:301+i,name,kind,value,min,max,step:[0,1,5,6,7,8,9].includes(i)?1:.01,available:i!==0,effect:'Feeder 0.15.1'}));
+        sample.feedTools=[['Feeder enabled (original panel)',1,1,0,1],['Work resolution (%)',0,100,50,100],['Work sharpness',0,.3,0,1],['Motion scale X',0,1,-2,2],['Motion scale Y',0,1,-2,2],['HDR contract',0,-1,-1,1],['Depth convention',0,-1,-1,1],['Work upscale',0,0,0,2],['HDR10 bridge',0,-1,-1,1],['HDR paper white (nits)',0,203,50,1000],['Output stabiliser hold',0,0,0,1],['Stabiliser change tolerance',0,.04,0,1]].map(([name,kind,value,min,max],i)=>({id:301+i,name,kind,value,min,max,step:[0,1,5,6,7,8,9].includes(i)?1:.01,available:i!==0,effect:'Feeder 1.17.0'}));
         build();update();
       };
       modes.after(backend);
@@ -234,7 +234,7 @@ window.mountOverlayLive = (root, { designOnly = false } = {}) => {
     panel.querySelector('.ol-prototype').textContent = status ? OL_T('LIVE RESHADE','RESHADE مباشر','实时 RESHADE') : OL_T('DISCONNECTED','غير متصل','未连接');
     panel.querySelector('.ol-eyebrow').textContent = OL_T('DLSS 5 SWAPPER · INJECTED TOOLS','DLSS 5 SWAPPER · أدوات محقونة','DLSS 5 SWAPPER · 注入工具');
     for (const element of [...panel.children]) if (element !== modes && element.tagName !== 'HEADER') element.remove();
-    const info = el('p', 'ol-live-note', status===sample?OL_T('Design preview; no game connection.','معاينة تصميم؛ لا اتصال باللعبة.','设计预览；未连接游戏。'):status?.nrAvailable ? OL_T('RenoDX v4.7 controls use its original callback. FX controls below are separate. Experimental adapter; original tool windows remain available.','تستخدم أدوات RenoDX v4.7 ردّها الأصلي. أدوات FX أدناه منفصلة. محوّل تجريبي؛ نوافذ الأدوات الأصلية تبقى متاحة.','RenoDX v4.7 控制项使用其原始回调。下方的 FX 控制项相互独立。此为实验性适配器；原有工具窗口仍可使用。') : OL_T('Waiting for compatible RenoDX. FX controls do not control DLSS.','في انتظار RenoDX متوافق. أدوات FX لا تتحكم في DLSS.','正在等待兼容的 RenoDX。FX 控制项不控制 DLSS。'));
+    const info = el('p', 'ol-live-note', status===sample?OL_T('Design preview; no game connection.','معاينة تصميم؛ لا اتصال باللعبة.','设计预览；未连接游戏。'):status?.nrAvailable ? OL_T('RenoDX controls use its original callback. FX controls below are separate. Experimental adapter; original tool windows remain available.','تستخدم أدوات RenoDX ردّها الأصلي. أدوات FX أدناه منفصلة. محوّل تجريبي؛ نوافذ الأدوات الأصلية تبقى متاحة.','RenoDX 控制项使用其原始回调。下方的 FX 控制项相互独立。此为实验性适配器；原有工具窗口仍可使用。') : OL_T('Waiting for compatible RenoDX. FX controls do not control DLSS.','في انتظار RenoDX متوافق. أدوات FX لا تتحكم في DLSS.','正在等待兼容的 RenoDX。FX 控制项不控制 DLSS。'));
     panel.append(info);
     const tools = el('div', 'ol-live-tools'); panel.append(tools);
     const add = t => addTool(tools, t);

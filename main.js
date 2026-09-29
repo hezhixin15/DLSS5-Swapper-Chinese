@@ -58,6 +58,7 @@ const community = () => communityClient || (communityClient = new CommunityClien
   getAdminToken: () => adminAccess().load()
 }));
 const communityAnswer = async work => {
+  if (!communityUsed()) return { ok: false, error: 'community_opt_in', message: 'Community has not been opened yet', status: null };
   try { return { ok: true, ...(await work()) }; }
   catch (error) { return { ok: false, error: error.code || 'community_failed', message: error.message, status: error.status || null }; }
 };
@@ -279,6 +280,11 @@ function apiPreference(state, dir, exe) {
   const value = state.apiOverrides?.[apiPreferenceKey(dir, exe)];
   return renderingApi.valid(value) ? value : 'auto';
 }
+// #328: which file ReShade goes in as, per executable. dxgi.dll unless the
+// person chose d3d11.dll for a DirectX 11 game that never loads dxgi.dll.
+function reshadeProxyPreference(state, dir, exe) {
+  return state.reshadeProxy?.[apiPreferenceKey(dir, exe)] === 'd3d11' ? 'd3d11' : 'dxgi';
+}
 
 // Renderer can only load what it is handed a URL for.
 function posterUrl(game, state) {
@@ -429,6 +435,14 @@ function overlayLibrary() {
 let overlayBridge;
 let quitting = false;
 
+// #365: on some machines the window repaints with stale tiles - rows from
+// before a scroll stay on screen, in every version and at every scale. That is
+// Chromium's GPU compositor, not the page. A switch in Settings turns hardware
+// acceleration off for this window, which costs nothing here: it draws text,
+// cards and pictures. It has to be read before the app is ready, because that
+// is the last moment the flag can still be set.
+try { if (loadState().safeGraphics === true) app.disableHardwareAcceleration(); } catch { /* a default is fine */ }
+
 app.whenReady().then(async () => {
   // app.quit() is asynchronous, so a copy that lost the lock still reaches
   // this point: without the guard it would create a window and take over the
@@ -441,7 +455,7 @@ app.whenReady().then(async () => {
   // The icon is there from launch, not only after the first close - somebody
   // who wants the app parked in the tray wants to see that it is.
   if (loadState().closeToTray !== false) ensureTray();
-  startNotices();
+  if (communityUsed()) startNotices();
   try {
     overlayBridge = await require('./src/overlay-bridge')({ BrowserWindow, userData: app.getPath('userData'), lang: loadState().lang });
     if (quitting) overlayBridge.close();
@@ -476,6 +490,11 @@ ipcMain.handle('boot', () => {
       try { return payload() ? null : payloadMissing().message; } catch { return null; }
     })(),
     theme: state.theme || 'light',
+    // Which of the two skins draws the app. Theme 1 is the original design and
+    // stays the default; theme 2 is the modern one.
+    skin: state.skin === 'two' ? 'two' : 'one',
+    // Theme 2 can keep the sidebar as a rail of icons that opens on hover.
+    rail: state.rail === 'on' ? 'on' : 'off',
     lang: state.lang || 'en',
     // 'pending' until the guide is either finished or skipped. Absent means
     // pending, so every install that predates the guide sees it once.
@@ -493,6 +512,35 @@ ipcMain.handle('set-lang', (_event, lang) => {
   return lang;
 });
 
+// Theme 2's game page has a Play button. Steam games are started through the
+// launcher that owns them; anything else opens its own executable. Nothing is
+// installed or changed by this - it is the same double click the person would
+// do in their library.
+ipcMain.handle('launch-game', async (_event, dir) => {
+  if (typeof dir !== 'string' || !path.isAbsolute(dir)) return { ok: false, message: 'errApiChoice' };
+  const known = lastGames.find((game) => keyFor(game.dir) === keyFor(dir));
+  if (known && known.appid) {
+    await shell.openExternal(`steam://rungameid/${String(known.appid).replace(/[^0-9]/g, '')}`);
+    return { ok: true, via: 'steam' };
+  }
+  try {
+    const scan = await scanGame(dir);
+    const exe = scan.chosen && scan.chosen.path;
+    if (!exe) return { ok: false, message: 'No game executable found' };
+    const error = await shell.openPath(exe);
+    return error ? { ok: false, message: error } : { ok: true, via: 'exe' };
+  } catch (error) { return { ok: false, message: error.message }; }
+});
+ipcMain.handle('set-rail', (_event, rail) => {
+  const state = loadState();
+  state.rail = rail === 'on' ? 'on' : 'off';
+  return saveState(state) ? { ok: true, rail: state.rail } : { ok: false, rail: state.rail };
+});
+ipcMain.handle('set-skin', (_event, skin) => {
+  const state = loadState();
+  state.skin = skin === 'two' ? 'two' : 'one';
+  return saveState(state) ? { ok: true, skin: state.skin } : { ok: false, skin: state.skin };
+});
 ipcMain.handle('set-theme', (_event, theme) => {
   const state = loadState();
   state.theme = theme;
@@ -587,7 +635,9 @@ ipcMain.handle('settings', () => {
     groupGamesByStore: state.groupGamesByStore !== false,
     closeToTray: state.closeToTray !== false,
     autoUpdateCheck: state.autoUpdateCheck !== false,
-    skippedUpdates: [...(state.skippedUpdates || [])]
+    skippedUpdates: [...(state.skippedUpdates || [])],
+    safeGraphics: state.safeGraphics === true,
+    skin: state.skin === 'two' ? 'two' : 'one'
   };
 });
 
@@ -595,6 +645,11 @@ ipcMain.handle('settings', () => {
 // Network access stays in the main process. The renderer receives only parsed
 // data and cannot choose an arbitrary host or attach the private install id to
 // another request.
+// Opening the Community page, filing a report or asking for a game's reports
+// is the opt-in; it is the only thing that switches the community side of the
+// app on (#358).
+ipcMain.handle('community-opt-in', () => { markCommunityUsed(); return { ok: true, on: true }; });
+ipcMain.handle('community-opted-in', () => ({ ok: true, on: communityUsed() }));
 ipcMain.handle('community-profile', async () => {
   if (adminAccess().load()) {
     try { await community().adminStatus(); }
@@ -808,7 +863,18 @@ const NOTICE_EVERY = 60_000;
 let noticeTimer = null;
 let noticeBusy = false;
 
-const noticesOn = () => loadState().communityNotices !== false;
+// #358: a fresh install polled the notice endpoint eight seconds after
+// launch, before anyone had opened Community at all. The first visit to the
+// page is the opt-in; until then this app talks to no server of ours.
+const communityUsed = () => loadState().communityUsed === true;
+function markCommunityUsed() {
+  if (communityUsed()) return;
+  const state = loadState();
+  state.communityUsed = true;
+  saveState(state);
+  startNotices();
+}
+const noticesOn = () => loadState().communityNotices !== false && communityUsed();
 
 async function pollNotices() {
   if (noticeBusy || !noticesOn() || !win || win.isDestroyed()) return;
@@ -907,6 +973,12 @@ ipcMain.handle('community-prefill', async (_event, dir) => {
   });
 });
 
+ipcMain.handle('set-safe-graphics', (_event, enabled) => {
+  const state = loadState();
+  state.safeGraphics = enabled === true;
+  // It reads the flag at startup, so the change lands on the next launch.
+  return saveState(state) ? { ok: true, on: state.safeGraphics } : { ok: false, on: !state.safeGraphics };
+});
 ipcMain.handle('set-close-to-tray', (_event, enabled) => {
   const state = loadState();
   state.closeToTray = enabled === true;
@@ -1318,7 +1390,10 @@ ipcMain.handle('acknowledge-driver', (_event, names) => {
 // names from the pinned list are accepted - the folder is still hash-verified
 // and still puts back anything swapped into it by hand (#191).
 ipcMain.handle('optiscaler-builds', (_event, dir) => ({
-  builds: optiscaler.RELEASES.map((r) => r.version),
+  // The version is the identity; the label is what a person reads. Two of these
+  // are one project's versions and one is another fork entirely, so a bare
+  // number would read as "older" when it is neither older nor newer.
+  builds: optiscaler.RELEASES.map((r) => ({ version: r.version, label: r.label || r.version })),
   current: (loadState().optiscalerVersion || {})[path.resolve(String(dir || '')).toLowerCase()] || optiscaler.RELEASE.version
 }));
 
@@ -1461,6 +1536,7 @@ const paletteOfAll = (...files) => mergePalettes(files.map(paletteOf));
 
 ipcMain.handle('community-art', async (_event, key, title) => {
   if (typeof key !== 'string' || !/^[a-z]+:[A-Za-z0-9._-]{1,64}$/.test(key)) return { none: true };
+  if (!communityUsed()) return { none: true };
   const state = loadState();
   const cacheKey = `community-w-${crypto.createHash('sha256').update(key).digest('hex').slice(0, 24)}`;
   // A remembered picture is only worth serving while the file is still there.
@@ -1706,6 +1782,7 @@ ipcMain.handle('details', async (_event, dir) => {
       crashWarning: Boolean(crashWarning.known(e.path)),
       hasNativeDlss,
       apiOverride: apiPreference(state, dir, e.path),
+      reshadeProxy: reshadeProxyPreference(state, dir, e.path),
       apiChoices: e.apiChoices || [{ api: e.api, label: e.apiLabel }],
       routes: installRoutes.routesFor({ ...e, hasNativeDlss })
     })),
@@ -1737,6 +1814,22 @@ ipcMain.handle('set-api-override', async (_event, dir, exePath, value) => {
   const key = apiPreferenceKey(dir, exePath);
   if (value === 'auto') delete state.apiOverrides[key];
   else state.apiOverrides[key] = value;
+  return saveState(state) ? { ok: true } : { ok: false, code: 'errApiSave' };
+});
+ipcMain.handle('set-reshade-proxy', async (_event, dir, exePath, value) => {
+  if (mutationBusy) return { ok: false, code: 'errJobBusy' };
+  if (!['dxgi', 'd3d11'].includes(value) || typeof dir !== 'string' || !path.isAbsolute(dir) || typeof exePath !== 'string') {
+    return { ok: false, code: 'errApiChoice' };
+  }
+  const scan = await scanGame(dir);
+  if (mutationBusy) return { ok: false, code: 'errJobBusy' };
+  if (!scan.exeCandidates.some(exe => exe.path === exePath)) return { ok: false, code: 'errApiChoice' };
+  const state = loadState();
+  state.reshadeProxy = state.reshadeProxy && typeof state.reshadeProxy === 'object' && !Array.isArray(state.reshadeProxy)
+    ? state.reshadeProxy : {};
+  const key = apiPreferenceKey(dir, exePath);
+  if (value === 'dxgi') delete state.reshadeProxy[key];
+  else state.reshadeProxy[key] = value;
   return saveState(state) ? { ok: true } : { ok: false, code: 'errApiSave' };
 });
 async function exclusiveMutation(work) {
@@ -1817,6 +1910,7 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
   }
 
   let optiRoot = null;
+  let optiVersion = null;
   if (route === 'optiscaler') {
     optiscaler.checkConflicts(dir, target.path, old, api);
     if (api === 'vulkan' && await vulkanLayer.existing(vulkanLayer.defaultRunner)) return { ok: false, code: 'errOptiVulkanLayer' };
@@ -1845,6 +1939,7 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
     // to keep an old copy of the whole app.
     const wanted = (loadState().optiscalerVersion || {})[path.resolve(dir).toLowerCase()];
     const release = optiscaler.releaseFor(wanted);
+    optiVersion = release.version;
     try { optiRoot = await optiscaler.ensureOptiScaler(app.getPath('userData'), release.version); }
     catch (err) { return { ok: false, code: componentCode(err, 'errOptiDownload'), message: err.message }; }
     send({ code: 'optiVerified', params: { version: release.version } });
@@ -1926,7 +2021,10 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
         // Never silently. A route or an API the panel cannot ride on produced
         // an install with no overlay file and no line saying why, which is
         // indistinguishable from a bug.
-        send({ code: 'overlaySkipped', params: { error: `the panel does not attach on ${route}/${target.apiLabel || target.api}` } });
+        // The one reason that applies, in words: "does not attach on
+        // renodx/DirectX 11" read as a fault on every route (#338).
+        const why = target.bitness !== 64 ? 'bits' : route === 'renodx' ? 'multipass' : route === 'optiscaler' ? 'optiscaler' : 'api';
+        send({ code: 'overlayNotForRoute', params: { why, api: target.apiLabel || target.api } });
       }
     } catch (error) {
       // DLSS is the job; the overlay rides along. A missing or conflicting
@@ -1952,10 +2050,16 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
       emulator: target.emulator,
       source: p.source,
       optiRoot,
+      optiVersion,
       companions,
       reshadeSetup: p.reshadeSetup,
       setupRunner: proton ? createSetupRunner(proton) : undefined,
       vulkanLayerTarget: path.join(app.getPath('userData'), 'reshade-vulkan'),
+      // DirectX 11 (#328) and the wrapped DirectX 8/9 titles that become
+      // DirectX 11 inside dgVoodoo (#343). Not DirectX 12, which never loads
+      // d3d11.dll, and not OptiScaler, which has no ReShade of its own.
+      reshadeProxy: ['dxgi', 'd3d8', 'd3d9', 'ddraw'].includes(api) && target.apiLabel !== 'DirectX 12' && route !== 'optiscaler'
+        ? reshadeProxyPreference(loadState(), dir, target.path) : 'dxgi',
       installReShade: true,
       addMissingDlss: true,
       addStreamline: false,

@@ -26,5 +26,5 @@ test('real native DX12 stays available; injected DLLs never select native by the
   assert.deepEqual(routesFor(chosen), ['native', 'feeder', 'renodx']);
   assert.equal(recommendedRoute({ chosen, primaryDlss }), 'native');
   assert.equal(recommendedRoute({ chosen, primaryDlss, install: { added: ['engine/nvngx_dlss.dll'] } }), 'feeder');
-  assert.deepEqual(routesFor({ ...chosen, emulator: { key: 'xenia' } }), ['feeder']);
+  assert.deepEqual(routesFor({ ...chosen, emulator: { key: 'xenia' } }), ['feeder', 'renodx']);
 });

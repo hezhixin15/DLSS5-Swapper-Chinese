@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
+const renodx = require('./renodx-release');
 function run(file, args) {
   return new Promise((resolve, reject) => execFile(file, args, { windowsHide: true, timeout: 20000, maxBuffer: 4 * 1024 * 1024 },
     (error, stdout) => error ? reject(error) : resolve(stdout)));
@@ -76,10 +77,17 @@ const driverNumber = row => {
 // Measured upstream by the Feeder author across three machines: with the
 // RenoDX DLSS 5 consumer (v4.6 and v4.7), every neural evaluate faults inside
 // NVIDIA's own NGX runtime on 616.64 and 616.86, while 616.56 completes.
-// Reported as DLSS5-Feeder issue #54. This only warns - the install is the
-// person's to make, and a later driver may well fix it.
+// Reported as DLSS5-Feeder issue #54.
+//
+// The fault was the consumer's, not the driver's: the 6.x line passes the same
+// self-test 300/300 on 617.14, and that is what this app now installs. So the
+// question is asked about the build rather than about the driver - on a payload
+// carrying one of the 4.x consumers - and everyone on a current driver is left
+// alone instead of being warned about something that has been fixed. It never
+// stopped an install and still does not.
 const NEURAL_FAULT_DRIVER = 61664;
-function driverNeuralFault(rows) {
+function driverNeuralFault(rows, consumer = renodx.CONSUMER.sha256) {
+  if (!renodx.faults(consumer)) return false;
   return (rows || []).some(row => /nvidia|rtx|gtx/i.test(row.name) && driverNumber(row) >= NEURAL_FAULT_DRIVER);
 }
 function driverNames(rows) { return (rows || []).map(row => `${row.name} - ${row.driver}`).join(', '); }

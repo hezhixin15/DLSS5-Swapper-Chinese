@@ -73,6 +73,14 @@ function loadProfile(config) {
   }
   return files;
 }
+// #328: only a ReShade this app put there, and only between its two DirectX
+// 11 names. A ReShade the game came with is reused as it is.
+function reshadeFileChanged(old, config) {
+  const file = old.reshade && old.reshade.installedByUs ? String(old.reshade.file || '').toLowerCase() : '';
+  if (config.api !== 'dxgi' || !/^(dxgi|d3d11)\.dll$/.test(file)) return false;
+  return file !== core.hookForApi(config.api, config.reshadeProxy);
+}
+
 async function install(config, log = () => {}) {
   compatibility.assertSafeTarget(config.gameDir, config.exePath);
   // #301: a game under Program Files cannot be written to without elevation,
@@ -82,7 +90,8 @@ async function install(config, log = () => {}) {
   compatibility.assertAntiCheatConsent(config.gameDir, config.exePath, config.antiCheatAcknowledged);
   const old = readManifest(config.gameDir);
   const changed = old && (old.route !== config.route || old.game.api !== config.api ||
-    old.game.exe.toLowerCase() !== path.relative(config.gameDir, config.exePath).toLowerCase());
+    old.game.exe.toLowerCase() !== path.relative(config.gameDir, config.exePath).toLowerCase() ||
+    reshadeFileChanged(old, config));
   // Global Vulkan registration has shared ownership. Until an explicit layer
   // migration is available, require restoring first instead of changing other
   // games' registration or leaving it behind during a failed transaction.

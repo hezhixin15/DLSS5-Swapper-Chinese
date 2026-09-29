@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const extractZip = require('extract-zip');
 const { execFileSync } = require('child_process');
 const feederRelease = require('../src/core/feeder-release');
+const renodx = require('../src/core/renodx-release');
 
 const ROOT = path.resolve(__dirname, '..');
 const PAYLOAD = path.join(ROOT, 'payload');
@@ -112,31 +113,33 @@ function findReShadeSetup() {
   return found[0] || null;
 }
 
-// The two RenoDX consumers this app can install, each found beside the source
-// tree and each verified by digest before it is copied. Neither is downloaded:
-// they are not published as releases with URLs, so the digest is the only thing
+// The two RenoDX consumers this app can install, each pinned by release URL
+// and digest in src/core/renodx-release.js. A copy sitting beside the source
+// tree is still accepted - a build machine without a network keeps working -
+// but it has to be the pinned file, because the digest is the only thing
 // standing between the build and a file that merely has the right name.
-const RENODX_ADDONS = Object.freeze({
-  // What every route has used so far.
-  'renodx-dlss5.addon64': 'd5adf82eb44b065f4c590ac91fe824bab07afea0eb9f994bde936710c8593952',
-  // ShortFuse's DLSS Tool build. It carries the multipass control that #251
-  // asks for - DirectNeuralRenderingPassCount - and it REPLACES the one above
-  // rather than joining it: two neural consumers in one game leave the tickbox
-  // saying yes while the picture says no.
-  'renodx-dlss.addon64': '1d855cf226857dce890cffbf7206ba9b6497ce1d471b217c1c8b44b6cd5d27e9'
-});
+const RENODX = { 'renodx-dlss5.addon64': renodx.CONSUMER, 'renodx-dlss.addon64': renodx.MULTIPASS };
 
-function findRenoDxAddon(sourceDir, wanted) {
-  const expected = RENODX_ADDONS[wanted];
+async function findRenoDxAddon(sourceDir, wanted) {
+  const release = RENODX[wanted];
   for (const dir of [sourceDir, path.resolve(ROOT, '..'), ...DEFAULT_SOURCES]) {
     let files = [];
     try { files = fs.readdirSync(dir); } catch { continue; }
     const name = files.find((file) => file.toLowerCase() === wanted);
     if (!name) continue;
     const full = path.join(dir, name);
-    if (sha256(full) === expected) return full;
+    if (sha256(full) === release.sha256) return full;
   }
-  return null;
+  // Nothing local matches the pin, so fetch the release it names.
+  try {
+    const upstream = await extracted(release.archive, release.archive[0].replace(/.zip$/i, ''));
+    const full = path.join(upstream, wanted);
+    if (sha256(full) === release.sha256) return full;
+    throw new Error(`the release archive does not carry the pinned ${wanted}`);
+  } catch (error) {
+    console.log(`  note: ${wanted} ${release.version} could not be fetched - ${error.message}`);
+    return null;
+  }
 }
 const findHostAddon = (sourceDir) => findRenoDxAddon(sourceDir, 'renodx-dlss5.addon64');
 
@@ -162,8 +165,32 @@ function assertOverlayPinMatches() {
   ].join('\n'));
 }
 
+// The F8 panel does not talk to the RenoDX add-on by name: it recognises the
+// exact build, because it borrows that build's own UI dispatch at addresses
+// that move with every release. Shipping a consumer the overlay does not know
+// leaves every neural control in the panel dark, with nothing in any log - which
+// is exactly what shipping 6.5.3 against a 4.70-only overlay did. The build
+// refuses to produce that state again.
+function assertOverlayKnowsConsumer() {
+  const header = path.join(ROOT, 'overlay', 'renodx-ui-probe.hpp');
+  let text = '';
+  try { text = fs.readFileSync(header, 'utf8'); } catch { return; }
+  const wanted = renodx.CONSUMER.sha256;
+  const pinned = [...text.matchAll(/inline const unsigned char sha_\w+\[\] = \{([^}]+)\}/g)]
+    .map((match) => match[1].split(',').map((b) => b.trim().replace(/^0x/, '').padStart(2, '0')).join(''));
+  if (pinned.includes(wanted)) return;
+  throw new Error([
+    'overlay/renodx-ui-probe.hpp does not know the RenoDX consumer being shipped,',
+    'so the F8 panel would show no neural controls at all.',
+    `  shipping  ${renodx.CONSUMER.version}  ${wanted}`,
+    `  overlay   ${pinned.join('\n            ') || '(none)'}`,
+    '  Add the build to known_builds with its own offsets, then run npm run overlay:build.'
+  ].join('\n'));
+}
+
 async function collectFeeder(source) {
   assertOverlayPinMatches();
+  assertOverlayKnowsConsumer();
   console.log(`\nDLSS5-Feeder v${feederRelease.version} (matching 32/64-bit clients and host):`);
   const feeder = path.join(PAYLOAD, 'feeder');
   const upstream = await extracted(COMPONENTS.feeder, `feeder-${feederRelease.version}`);
@@ -188,24 +215,25 @@ async function collectFeeder(source) {
   // dgVoodoo forbids bundling in general-purpose launchers/frameworks.
   // The app downloads the full official archive on first DX8/DX9 install.
 
-  const hostAddon = findHostAddon(source.dir);
+  const hostAddon = await findHostAddon(source.dir);
   if (!hostAddon) {
-    throw new Error('The verified RenoDX DLSS5 v4.7 add-on required by Feeder was not found.');
+    throw new Error(`The verified RenoDX DLSS5 ${renodx.CONSUMER.version} add-on required by Feeder was not found.`);
   }
   copyFile(hostAddon, path.join(feeder, 'host64', 'renodx-dlss5.addon64'));
   // The multipass consumer rides in the same folder. It is optional: a build
   // machine without it produces an app whose multipass route simply is not
   // offered, rather than a build that fails.
-  const multipass = findRenoDxAddon(source.dir, 'renodx-dlss.addon64');
+  const multipass = await findRenoDxAddon(source.dir, 'renodx-dlss.addon64');
   if (multipass) copyFile(multipass, path.join(feeder, 'host64', 'renodx-dlss.addon64'));
-  else console.log('  note: renodx-dlss.addon64 not found beside the source - the multipass route will be absent');
+  else console.log('  note: renodx-dlss.addon64 is neither beside the source nor fetchable - the multipass route will be absent');
   fs.mkdirSync(path.join(feeder, 'licenses'), { recursive: true });
   fs.writeFileSync(path.join(feeder, 'licenses', 'THIRD-PARTY-SOURCES.txt'), [
     `DLSS5-Feeder v${feederRelease.version} — https://github.com/jlrouzies-fr/DLSS5-Feeder`,
     'VORT shaders b410b9f0c0fbb83c8cb42164aaf1655fab386f4a — https://github.com/vortigern11/vort_Shaders',
     'ReShade headers ee30868391d4ad103db60489820102d8fd40e3c1 — https://github.com/crosire/reshade-shaders',
-    'dgVoodoo2 v2.87.4 — downloaded at runtime; not bundled — https://github.com/dege-diosg/dgVoodoo2',
-    'RenoDX DLSS5 add-on v4.7 — https://github.com/clshortfuse/renodx',
+    `dgVoodoo2 v${require('../src/core/runtime-components').DGVOODOO_VERSION} — downloaded at runtime; not bundled — https://github.com/dege-diosg/dgVoodoo2`,
+    `RenoDX DLSS5 add-on v${renodx.CONSUMER.version} — https://github.com/clshortfuse/renodx`,
+    `RenoDX DLSS Tool add-on ${renodx.MULTIPASS.version} — https://github.com/clshortfuse/renodx`,
     ''
   ].join('\r\n'));
 }
@@ -242,7 +270,7 @@ if (overrides) console.log(`  (${overrides} override${overrides > 1 ? 's' : ''} 
 // used to be "the first .addon64 beside the source", and once the multipass
 // consumer was placed there too it sorted first: 2.2.5 shipped it as the native
 // route's add-on, and every native install became a multipass one.
-const addon = findHostAddon(source.dir);
+const addon = await findHostAddon(source.dir);
 if (!addon) {
   console.error('لم يتم العثور على renodx-dlss5.addon64 الموثّق / verified renodx-dlss5.addon64 not found.');
   process.exit(1);

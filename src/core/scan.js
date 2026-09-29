@@ -585,12 +585,22 @@ async function scanGame(gameDir) {
     ((b.declared ? 1 : 0) - (a.declared ? 1 : 0)) ||
     (b.dx12 - a.dx12) || (playableRoleScore(b) - playableRoleScore(a)) ||
     (a.depth - b.depth) || (b.size - a.size));
+  // A game that ships a DX11 build and a DX12 build names both executables the
+  // same, and dropping by name alone hid one of them for good - the picker had
+  // no way to reach it (#355). A copy a crack or a backup left behind is the
+  // same bytes and the same renderer; a real variant differs in one of them.
+  // Two per name is the ceiling, so a folder full of copies stays readable.
   const seenNames = new Set();
+  const perName = new Map();
   const unique = [];
   for (const exe of exeCandidates) {
-    const key = exe.name.toLowerCase();
+    const name = exe.name.toLowerCase();
+    const key = `${name}|${exe.size}|${exe.dx12 ? 12 : 11}`;
     if (seenNames.has(key)) continue;
+    const seen = perName.get(name) || 0;
+    if (seen >= 2) continue;
     seenNames.add(key);
+    perName.set(name, seen + 1);
     unique.push(exe);
   }
   exeCandidates.length = 0;
@@ -678,10 +688,20 @@ async function scanGame(gameDir) {
       if (install.optiscaler) {
         const exeDir = path.dirname(safePath(gameDir, data.game.exe));
         const hook = safePath(gameDir, path.relative(gameDir, path.join(exeDir, install.optiscaler.hook)));
+        // What counts as installed depends on which build the manifest names:
+        // one of them reaches the neural runtime through a forwarder DLL, and
+        // the pre-SR fork opens it directly and has none. Requiring a forwarder
+        // from every build reported the fork's own install as absent.
+        const layout = require('./optiscaler').releaseFor(install.optiscaler.version).layout;
+        const needed = ['nvngx_dlssnr.dll', 'OptiScaler.ini', layout.forwarder].filter(Boolean);
         install.optiscaler.installed = pe.versionMentions(hook, 'OptiScaler') &&
-          ['nvngx.dll_dlssnr.dll', 'nvngx_dlssnr.dll', 'OptiScaler.ini'].every(name => fs.existsSync(path.join(exeDir, name)));
+          needed.every(name => fs.existsSync(path.join(exeDir, name)));
       }
     } catch {}
+  }
+  let recoverable = null;
+  if (!fs.existsSync(activeManifest)) {
+    try { recoverable = require('./apply').recoverableManifest(gameDir); } catch {}
   }
   let reshade = chosen ? inspectReShade(path.dirname(chosen.path)) : inspectReShade(gameDir);
   if (!reshade.installed && install && install.vulkanLayer &&
@@ -705,7 +725,9 @@ async function scanGame(gameDir) {
     emptyReason,
     reshade,
     install,
-    hasBackup: fs.existsSync(activeManifest)
+    // A retired manifest whose files are still in the game counts: the button
+    // used to go dead in exactly the case where it is needed most (#325).
+    hasBackup: fs.existsSync(activeManifest) || Boolean(recoverable)
   };
 }
 

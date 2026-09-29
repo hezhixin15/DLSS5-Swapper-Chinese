@@ -5,7 +5,7 @@
   const L = {
     en: {
       title: 'Community-tested games', subtitle: 'Real results from DLSS 5 Swapper users.', refresh: 'Refresh', search: 'Search games', route: 'Route', api: 'Rendering API', result: 'Result',
-      scopeAll: 'Everyone', scopeMine: 'My games', scopeReports: 'My comments', mineHint: 'Only the games installed on this PC', reportsHint: 'The games you reported on', reportsTotal: n => `You reported on ${n} game${n === 1 ? '' : 's'}`, reportsEmpty: 'You have not reported on any game yet.', showingMine: n => `Your ${n} report${n === 1 ? '' : 's'}`, sortLabel: 'Sort', sortRecent: 'Most recent', sortReports: 'Most reports', sortTitle: 'A–Z', noReportsYet: n => `On this PC, no reports yet · ${n}`, noReportsHint: 'Open one to install it - then be the first to say how it went.', installedBadge: 'DLSS 5 installed', onPc: 'On this PC', gpuLabel: 'Graphics card', allGpus: 'All graphics cards', myGpu: model => `My card · ${model}`, mineEmpty: 'None of the games on this PC have community reports yet.', mineTotal: n => `${n} of your games have reports`, showingGpu: (model, n) => `${n} report${n === 1 ? '' : 's'} on ${model}`, allRoutes: 'All routes', allApis: 'All APIs', allResults: 'All results', working: 'Working', issues: 'Works with issues', broken: 'Not working', mixed: 'Mixed', clear: 'Clear filters', loading: 'Loading community results…', empty: 'No matching community reports yet.', offline: 'Community service is unavailable. Check your connection and try again.',
+      showAllReports: 'Show all reports', scopeAll: 'Everyone', scopeMine: 'My games', scopeReports: 'My comments', mineHint: 'Only the games installed on this PC', reportsHint: 'The games you reported on', reportsTotal: n => `You reported on ${n} game${n === 1 ? '' : 's'}`, reportsEmpty: 'You have not reported on any game yet.', showingMine: n => `Your ${n} report${n === 1 ? '' : 's'}`, sortLabel: 'Sort', sortRecent: 'Most recent', sortReports: 'Most reports', sortTitle: 'A–Z', noReportsYet: n => `On this PC, no reports yet · ${n}`, noReportsHint: 'Open one to install it - then be the first to say how it went.', installedBadge: 'DLSS 5 installed', onPc: 'On this PC', gpuLabel: 'Graphics card', allGpus: 'All graphics cards', myGpu: model => `My card · ${model}`, mineEmpty: 'None of the games on this PC have community reports yet.', mineTotal: n => `${n} of your games have reports`, showingGpu: (model, n) => `${n} report${n === 1 ? '' : 's'} on ${model}`, allRoutes: 'All routes', allApis: 'All APIs', allResults: 'All results', working: 'Working', issues: 'Works with issues', broken: 'Not working', mixed: 'Mixed', clear: 'Clear filters', loading: 'Loading community results…', empty: 'No matching community reports yet.', offline: 'Community service is unavailable. Check your connection and try again.',
       reports: n => `${n} report${n === 1 ? '' : 's'}`, comments: n => `${n} comment${n === 1 ? '' : 's'}`, noComments: 'No comments yet.', updated: 'Live updates are on while this card is open.',
       share: 'Share your result', shareHint: 'Share your result and help the community.', why: 'Your report helps improve compatibility for everyone.', routeUsed: 'Route used', choose: 'Choose…', unknown: 'No results yet', yourResult: 'Your result', optionalComment: 'Optional comment', sent: 'Data that will be sent', cancel: 'Cancel', submit: 'Submit report', submitting: 'Submitting…', chooseRoute: 'Choose the route you actually used.', chooseVerdict: 'Choose your result.', sentOk: 'Your report was added to the community.',
       profile: 'Community profile', profileHint: 'Your fixed avatar and display name appear beside your comments. A name can change once a week.', displayName: 'Display name', chooseIcon: 'Choose an avatar', save: 'Save profile', saved: 'Profile saved.', adminMode: 'Administrator mode', adminModeHint: 'Your replies are sent with your official name, avatar and ADMIN badge.', adminLogout: 'Sign out of administrator mode', adminLoggedOut: 'Administrator mode signed out.', unnamed: 'Anonymous', addGame: 'Add to community-tested games', reactionFailed: 'Could not save that reaction.',
@@ -39,7 +39,7 @@
     },
     ar: {
       title: 'ألعاب اختبرها المجتمع', subtitle: 'نتائج حقيقية من مستخدمي DLSS 5 Swapper.', refresh: 'تحديث', search: 'بحث عن لعبة', route: 'طريقة التثبيت', api: 'واجهة الرسوم', result: 'النتيجة',
-      scopeAll: 'الجميع', scopeMine: 'ألعابي', scopeReports: 'تعليقاتي', mineHint: 'الألعاب المثبّتة على جهازك فقط', reportsHint: 'الألعاب التي كتبت عنها تقريرًا', reportsTotal: n => `كتبت عن ${n} لعبة`, reportsEmpty: 'لم تكتب تقريرًا عن أي لعبة بعد.', showingMine: n => `تقاريرك: ${n}`, sortLabel: 'الترتيب', sortRecent: 'الأحدث', sortReports: 'الأكثر تقارير', sortTitle: 'أبجديًا', noReportsYet: n => `على جهازك، بلا تقارير بعد · ${n}`, noReportsHint: 'افتح أيًّا منها لتثبّت عليه، ثم كن أول من يكتب النتيجة.', installedBadge: 'DLSS 5 مثبّت', onPc: 'على جهازك', gpuLabel: 'كرت الشاشة', allGpus: 'كل كروت الشاشة', myGpu: model => `كرتي · ${model}`, mineEmpty: 'لا توجد تقارير من المجتمع لأي لعبة على جهازك حتى الآن.', mineTotal: n => `${n} من ألعابك عليها تقارير`, showingGpu: (model, n) => `${n} تقرير على ${model}`, allRoutes: 'كل الطرق', allApis: 'كل الواجهات', allResults: 'كل النتائج', working: 'تعمل', issues: 'تعمل مع مشاكل', broken: 'لا تعمل', mixed: 'نتائج مختلطة', clear: 'مسح الفلاتر', loading: 'جاري تحميل نتائج المجتمع…', empty: 'لا توجد تقارير مطابقة حتى الآن.', offline: 'خدمة المجتمع غير متاحة. تحقق من اتصالك وحاول مجددًا.',
+      showAllReports: 'اعرض كل التقارير', scopeAll: 'الجميع', scopeMine: 'ألعابي', scopeReports: 'تعليقاتي', mineHint: 'الألعاب المثبّتة على جهازك فقط', reportsHint: 'الألعاب التي كتبت عنها تقريرًا', reportsTotal: n => `كتبت عن ${n} لعبة`, reportsEmpty: 'لم تكتب تقريرًا عن أي لعبة بعد.', showingMine: n => `تقاريرك: ${n}`, sortLabel: 'الترتيب', sortRecent: 'الأحدث', sortReports: 'الأكثر تقارير', sortTitle: 'أبجديًا', noReportsYet: n => `على جهازك، بلا تقارير بعد · ${n}`, noReportsHint: 'افتح أيًّا منها لتثبّت عليه، ثم كن أول من يكتب النتيجة.', installedBadge: 'DLSS 5 مثبّت', onPc: 'على جهازك', gpuLabel: 'كرت الشاشة', allGpus: 'كل كروت الشاشة', myGpu: model => `كرتي · ${model}`, mineEmpty: 'لا توجد تقارير من المجتمع لأي لعبة على جهازك حتى الآن.', mineTotal: n => `${n} من ألعابك عليها تقارير`, showingGpu: (model, n) => `${n} تقرير على ${model}`, allRoutes: 'كل الطرق', allApis: 'كل الواجهات', allResults: 'كل النتائج', working: 'تعمل', issues: 'تعمل مع مشاكل', broken: 'لا تعمل', mixed: 'نتائج مختلطة', clear: 'مسح الفلاتر', loading: 'جاري تحميل نتائج المجتمع…', empty: 'لا توجد تقارير مطابقة حتى الآن.', offline: 'خدمة المجتمع غير متاحة. تحقق من اتصالك وحاول مجددًا.',
       reports: n => `${n} تقرير`, comments: n => `${n} تعليق`, noComments: 'لا توجد تعليقات بعد.', updated: 'التحديث المباشر يعمل أثناء فتح هذه البطاقة.',
       share: 'شارك نتيجتك', shareHint: 'شارك نتيجتك وساعد المجتمع.', why: 'بلاغك يحسّن التوافق للجميع.', routeUsed: 'طريقة التثبيت المستخدمة', choose: 'اختر…', unknown: 'لا نتائج بعد', yourResult: 'نتيجتك', optionalComment: 'تعليق اختياري', sent: 'البيانات التي سيتم إرسالها', cancel: 'إلغاء', submit: 'إرسال التقرير', submitting: 'جاري الإرسال…', chooseRoute: 'اختر طريقة التثبيت التي استخدمتها فعليًا.', chooseVerdict: 'اختر نتيجتك.', sentOk: 'تمت إضافة تقريرك إلى المجتمع.',
       profile: 'ملف المجتمع', profileHint: 'تظهر صورتك الثابتة واسمك بجانب تعليقاتك. يمكن تغيير الاسم مرة كل أسبوع.', displayName: 'اسم العرض', chooseIcon: 'اختر صورة', save: 'حفظ الملف', saved: 'تم حفظ الملف.', adminMode: 'وضع الإدارة', adminModeHint: 'ستُرسل ردودك باسمك وصورتك الرسمية مع شارة ADMIN.', adminLogout: 'تسجيل الخروج من وضع الإدارة', adminLoggedOut: 'تم تسجيل الخروج من وضع الإدارة.', unnamed: 'مجهول', addGame: 'إضافة إلى الألعاب المختبرة من المجتمع', reactionFailed: 'تعذر حفظ التفاعل.',
@@ -599,7 +599,7 @@
           <i class="community-dot ${comment.verdict}" title="${esc(comment.route || '')}"></i>
         </header>
         ${comment.comment ? `<p>${esc(comment.comment)}</p>` : ''}
-        <div class="community-tags">${(comment.tags || []).map(tag => `<span>${esc(tag)}</span>`).join('')}</div>
+        <div class="community-tags">${comment.api ? `<span class="community-api-tag">${esc(String(comment.api).toUpperCase())}</span>` : ''}${(comment.tags || []).map(tag => `<span>${esc(tag)}</span>`).join('')}</div>
         ${isMine(by) ? ownActions('report', comment.id, Boolean(mineFor(state.active?.key))) : ''}
         <div class="community-reactions">${reactions}
           <button type="button" class="community-open-thread" data-thread="${comment.id}">
@@ -768,11 +768,11 @@
       </div>` : ''}
       ${gpuFilter ? `<div class="community-route-filter">
         <span>${esc(text().showingGpu(gpuFilter, shown.length))}</span>
-        <button type="button" id="communityGpuClear">${esc(text().showAll)}</button>
+        <button type="button" id="communityGpuClear">${esc(text().showAllReports)}</button>
       </div>` : ''}
       ${mineFirst ? `<div class="community-route-filter">
         <span>${esc(text().showingMine(shown.length))}</span>
-        <button type="button" id="communityMineClear">${esc(text().showAll)}</button>
+        <button type="button" id="communityMineClear">${esc(text().showAllReports)}</button>
       </div>` : ''}
       <div class="community-comments">
         ${(card.announcements || []).map(announcementMarkup).join('')}
@@ -1371,6 +1371,10 @@
     };
     $('communityFollow').onclick = toggleFollow;
     $('communityCardClose').onclick = closeCard; $('communityCardDialog').addEventListener('cancel', event => { event.preventDefault(); closeCard(); });
+    // Reading to the bottom of a long card left the close button far above, and
+    // the only way out was to scroll all the way back up (#372). A click on the
+    // dimmed area around the card is where the pointer already is.
+    $('communityCardDialog').addEventListener('click', event => { if (event.target === $('communityCardDialog')) closeCard(); });
     $('communityCardBody').addEventListener('contextmenu', event => {
       const node = event.target.closest('[data-message-kind]');
       const message = messageFrom(node);
@@ -1450,8 +1454,14 @@
   // Who this install is, and what it follows. Asked for once at start rather
   // than on every card, and quietly - being offline is not an error here.
   loadMe().catch(() => {});
+  // Opening the page, opening a card or filing a report is the opt-in (#358).
+  // Nothing here asks the server for anything until one of them happens.
+  const optIn = async () => { try { await window.lab.communityOptIn(); } catch { /* answered offline all the same */ } };
   window.communityUi = {
-    render, renderProfile, openReport, openCard, applyLanguage, stopPolling, syncOwnReports,
+    render: async (...args) => { await optIn(); return render(...args); },
+    openReport: async (...args) => { await optIn(); return openReport(...args); },
+    openCard: async (...args) => { await optIn(); return openCard(...args); },
+    renderProfile, applyLanguage, stopPolling, syncOwnReports,
     // The games view asks these: whether this install already reported a game,
     // and how to take that report back from outside the community page.
     reportFor: dir => { const found = mineForDir(dir); return found ? { key: found[0], ...found[1] } : null; },

@@ -2761,3 +2761,10 @@ body { cursor: default; }
   transition: opacity .2s ease, transform .2s ease;
 }
 #toast.show { opacity: 1; transform: translateY(0); }
+
+/* #337: the report's DirectX version, first among its tags and set apart from them. */
+.community-tags .community-api-tag {
+  color: var(--accent); font-weight: 750; letter-spacing: .04em;
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
