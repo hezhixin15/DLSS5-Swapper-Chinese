@@ -8,7 +8,7 @@
 
 有不懂的或者是要反饋問題可以給：515629879@qq.com 發訊息
 
-我的kook服务器有问题可以在里面问我：https://kook.vip/6pSyqG
+我的kook服務器有問題可以在裏面問我：https://kook.vip/6pSyqG
 
 ## 這是什麼
 
