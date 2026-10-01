@@ -26,6 +26,8 @@ let clearCacheResult = null;
 let noticeSettings = true;
 // The guide covers the app while it is open, so the filters suite runs with it
 // already decided. The tutorial suite starts it pending instead.
+const windowCalls = [];
+const windowStateHandlers = [];
 let tutorial = process.env.TUTORIAL_FIXTURE || 'done';
 const tutorialLang = process.env.TUTORIAL_FIXTURE_LANG || 'en';
 const tutorialCalls = [];
@@ -56,6 +58,7 @@ contextBridge.exposeInMainWorld('lab', {
     if (on !== undefined) noticeSettings = Boolean(on);
     return { on: noticeSettings };
   },
+  communityOptedIn: async () => ({ ok: true, on: false }),
   testLibraryReads: () => libraryReads,
   recents: async () => [],
   history: async () => {
@@ -137,5 +140,11 @@ contextBridge.exposeInMainWorld('lab', {
   testClearCacheResult: value => { clearCacheResult = value; },
   setLang: async () => {},
   setTheme: async () => {},
+  window: async (action) => { windowCalls.push(action); return ''; },
+  testWindowCalls: () => windowCalls,
+  // Main pushes the real state; the suite plays main here so the drawn title
+  // bar can be checked against the state it would actually be sent.
+  onWindowState: (fn) => { windowStateHandlers.push(fn); },
+  testWindowState: (maximized) => { windowStateHandlers.forEach((fn) => fn(maximized)); },
   onJob: () => {}
 });

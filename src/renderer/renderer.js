@@ -545,18 +545,47 @@ async function renderSettings() {
       toggle.setAttribute('aria-checked', String(answer.on));
     } finally { toggle.disabled = false; }
   };
+  let swappingSkin = false;
   for (const button of document.querySelectorAll('[data-skin-choice]')) {
     button.onclick = async () => {
       const choice = button.dataset.skinChoice;
-      if (choice === state.skin) return;
-      state.skin = choice;
-      document.documentElement.dataset.skin = choice;
-      for (const other of document.querySelectorAll('[data-skin-choice]')) {
-        other.setAttribute('aria-pressed', String(other.dataset.skinChoice === choice));
+      if (choice === state.skin || swappingSkin) return;
+      const wear = () => {
+        state.skin = choice;
+        document.documentElement.dataset.skin = choice;
+        for (const other of document.querySelectorAll('[data-skin-choice]')) {
+          other.setAttribute('aria-pressed', String(other.dataset.skinChoice === choice));
+        }
+        syncSkinChrome();
+      };
+      swappingSkin = true;
+      try {
+        if (typeof document.startViewTransition === 'function'
+            && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          // One cross-fade for the whole skin; .skin-switching scopes the CSS.
+          document.documentElement.classList.add('skin-switching');
+          try {
+            await document.startViewTransition(wear).finished;
+          } catch {
+            // A second transition started mid-flight (Escape closing the
+            // sheet) skips this one and rejects .finished: wear() has already
+            // run and only the fade was cut short. If even the snapshot failed
+            // before wear(), the choice still lands, just without the fade.
+            if (state.skin !== choice) wear();
+          } finally {
+            document.documentElement.classList.remove('skin-switching');
+          }
+        } else {
+          wear();
+        }
+        // The sheet reopens only once the swap is done: openSheet starts its
+        // own view transition in this skin, and Chrome skips a running one to
+        // its end the moment a second begins.
+        if (sheetGame) openSheet(sheetGame.dir, true);
+      } finally {
+        swappingSkin = false;
       }
-      syncSkinChrome();
       try { await window.lab.setSkin(choice); } catch { /* the app still wears it now */ }
-      if (sheetGame) openSheet(sheetGame.dir, true);
     };
   }
   $('setSafeGraphics').onclick = async () => {
@@ -1353,6 +1382,8 @@ function applyLang(code) {
   $('themeBtn').title = t('ttTheme');
   $('winMin').title = t('ttMinimize'); $('winMin').setAttribute('aria-label', t('ttMinimize'));
   $('winClose').title = t('ttClose'); $('winClose').setAttribute('aria-label', t('ttClose'));
+  // Redraw rather than relabel: which of the two glyphs shows is a state question.
+  paintWindowState($('winMax').classList.contains('restore'));
   // Anything drawn from data has to be rebuilt, not just relabelled.
   renderLog();
   renderRecent();
@@ -1436,6 +1467,19 @@ document.addEventListener('click', () => {
 
 $('winMin').onclick = () => window.lab.window('minimize');
 $('winClose').onclick = () => window.lab.window('close');
+
+// The button shows the glyph for the state you would move to, and the window is
+// the only thing that knows which state that is - Win+Up and Aero Snap never
+// touch this button - so it paints what the main process reports, not the click.
+function paintWindowState(maximized) {
+  const btn = $('winMax');
+  btn.classList.toggle('restore', maximized);
+  const label = t(maximized ? 'ttRestore' : 'ttMaximize');
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+}
+window.lab.onWindowState(paintWindowState);
+$('winMax').onclick = () => window.lab.window('maximize');
 
 $('themeBtn').onclick = () => {
   state.theme = state.theme === 'light' ? 'dark' : 'light';

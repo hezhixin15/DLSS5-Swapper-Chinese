@@ -227,7 +227,7 @@ The install will go through. If the neural pass never appears in game, 616.56 is
     supportBody: 'Below are the donation channels for Rakan Alkhaldi, the original author of DLSS 5 Swapper. If you like the project, you can buy the original author a coffee.',
     agoNow: 'just now', agoMin: (n) => `${n} min ago`, agoHour: (n) => `${n} h ago`, agoDay: (n) => `${n} d ago`,
     artFound: (a, b) => `Artwork: ${a} of ${b} found`, libReady: (n, d) => `Library ready — ${n} games, ${d} on DirectX 12`,
-    ttTheme: 'Theme', ttMinimize: 'Minimize', ttClose: 'Close'
+    ttTheme: 'Theme', ttMinimize: 'Minimize', ttMaximize: 'Maximize', ttRestore: 'Restore', ttClose: 'Close'
   },
   ar: {
     antiCheatWarningTitle: 'تحذير: اكتشاف مكافحة غش',
@@ -409,7 +409,7 @@ The install will go through. If the neural pass never appears in game, 616.56 is
     supportBody: 'البرنامج مجاني ومفتوح المصدر برخصة MIT. إن وفّر عليك عناءً فبإمكانك دعمي بفنجان قهوة - أو امسح الرمز بجوالك.',
     agoNow: 'الآن', agoMin: (n) => `قبل ${n} دقيقة`, agoHour: (n) => `قبل ${n} ساعة`, agoDay: (n) => `قبل ${n} يوم`,
     artFound: (a, b) => `الصور: ${a} من ${b}`, libReady: (n, d) => `المكتبة جاهزة — ${n} لعبة، ${d} على DirectX 12`,
-    ttTheme: 'المظهر', ttMinimize: 'تصغير', ttClose: 'إغلاق'
+    ttTheme: 'المظهر', ttMinimize: 'تصغير', ttMaximize: 'تكبير', ttRestore: 'استعادة', ttClose: 'إغلاق'
   },
   zh: {
     antiCheatWarningTitle: '警告：检测到反作弊系统',
@@ -560,7 +560,7 @@ The install will go through. If the neural pass never appears in game, 616.56 is
     supportBody: '以下是 DLSS 5 Swapper 原作者 Rakan Alkhaldi 的捐赠渠道，喜欢这个项目的话，可以请原作者喝杯咖啡。',
     agoNow: '刚刚', agoMin: (n) => `${n} 分钟前`, agoHour: (n) => `${n} 小时前`, agoDay: (n) => `${n} 天前`,
     artFound: (a, b) => `封面：${b} 个中找到 ${a} 个`, libReady: (n, d) => `库已就绪 — ${n} 个游戏，${d} 个使用 DirectX 12`,
-    ttTheme: '主题', ttMinimize: '最小化', ttClose: '关闭',
+    ttTheme: '主题', ttMinimize: '最小化', ttMaximize: '最大化', ttRestore: '还原', ttClose: '关闭',
     restoreRecovered: (date) => `未找到仍在使用的备份记录，因此将从旁边保留的那一份进行还原（${date}）。它记录的文件仍在游戏中。`,
     forwarderRetired: (rel) => `已移除另一版本的转发器（${rel}）。本版本会直接连接神经渲染运行时，残留的转发器会静默中断处理。使用「还原原文件」可以把它放回去。`,
     overlayNotForRoute: (why, api) => `不会安装游戏内叠加层：${why === 'bits' ? '它仅支持 64 位游戏，而本游戏是 32 位' : why === 'multipass' ? '多遍渲染路线在游戏内有自己的页面（按 Home 打开），叠加层适用于原生 DLSS（RenoDX）与 Feeder' : why === 'optiscaler' ? 'OptiScaler 在游戏内有自己的菜单（按 Insert 打开），叠加层适用于原生 DLSS（RenoDX）与 Feeder' : `它仅支持 DirectX 11 和 12，而本游戏运行的是 ${api}`}。其余安装继续进行。`,

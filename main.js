@@ -377,6 +377,14 @@ function createWindow() {
   });
   win.loadFile(path.join(__dirname, 'src', 'renderer', 'index.html'));
   win.once('ready-to-show', () => win.show());
+  // The window draws its own title bar, so its maximise button has to be told
+  // when the state changes. Win+Up and a drag to the screen edge maximise
+  // without touching that button, and its glyph would point the wrong way.
+  const sendWindowState = (maximized) => {
+    if (!win.isDestroyed()) win.webContents.send('window-state', maximized);
+  };
+  win.on('maximize', () => sendWindowState(true));
+  win.on('unmaximize', () => sendWindowState(false));
   // Close hides to the tray unless the person turned that off, or unless the
   // app is genuinely quitting - Quit in the tray menu, or the OS asking.
   win.on('close', (event) => {

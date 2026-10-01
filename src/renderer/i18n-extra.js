@@ -81,7 +81,7 @@ add({ code: 'zh-TW', label: 'Chinese (Traditional)', native: '繁體中文', dir
   trayShow: '開啟 DLSS 5 Swapper', trayQuit: '結束',
   setNotices: '社群通知', setNoticesHint: '當有人回覆我的留言、提及我，或在我追蹤的遊戲中留言時通知我。',
   supportBody: '以下是 DLSS 5 Swapper 原作者 Rakan Alkhaldi 的捐贈管道，喜歡這個專案的話，可以請原作者喝杯咖啡。',
-  ttTheme: '主題', ttMinimize: '最小化', ttClose: '關閉',
+  ttTheme: '主題', ttMinimize: '最小化', ttMaximize: '最大化', ttRestore: '還原', ttClose: '關閉',
   restoreRecovered: (date) => `未找到仍在使用的備份紀錄，因此將從旁邊保留的那一份進行還原（${date}）。它記錄的檔案仍在遊戲中。`,
   forwarderRetired: (rel) => `已移除另一版本的轉發器（${rel}）。本版本會直接連接神經渲染執行環境，殘留的轉發器會靜默中斷處理。使用「還原原始檔案」可以把它放回去。`,
   overlayNotForRoute: (why, api) => `不會安裝遊戲內疊加層：${why === 'bits' ? '它僅支援 64 位元遊戲，而本遊戲是 32 位元' : why === 'multipass' ? '多遍渲染路線在遊戲內有自己的頁面（按 Home 開啟），疊加層適用於原生 DLSS（RenoDX）與 Feeder' : why === 'optiscaler' ? 'OptiScaler 在遊戲內有自己的選單（按 Insert 開啟），疊加層適用於原生 DLSS（RenoDX）與 Feeder' : `它僅支援 DirectX 11 和 12，而本遊戲執行的是 ${api}`}。其餘安裝繼續進行。`,

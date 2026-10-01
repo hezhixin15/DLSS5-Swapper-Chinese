@@ -598,8 +598,31 @@ app.whenReady().then(async () => {
   assert.equal(await cacheCalls(), 3);
   await run(`applyLang('en'); show('settings'); renderSettings()`);
 
+  // The title bar is drawn by the page, so the maximise button cannot read the
+  // state off a native frame: main pushes it. The suite plays main here and
+  // reads the glyph the user would actually see, not the click it just made.
+  await run(`applyLang('en'); window.lab.testWindowState(true)`);
+  assert.equal(await run(`$('winMax').classList.contains('restore')`), true);
+  assert.equal(await run(`$('winMax').title`), 'Restore');
+  assert.equal(await run(`getComputedStyle($('winMax').querySelector('.ico-max')).display`), 'none');
+  assert.equal(await run(`getComputedStyle($('winMax').querySelector('.ico-restore')).display`), 'block');
+  // A language with no wording of its own falls back to English rather than
+  // painting "undefined" into the tooltip.
+  await run(`applyLang('fr')`);
+  assert.equal(await run(`$('winMax').title`), 'Restore');
+  await run(`applyLang('zh')`);
+  assert.equal(await run(`$('winMax').title`), '还原', 'switching language keeps the label on the state the window is in');
+  await run(`window.lab.testWindowState(false)`);
+  assert.equal(await run(`$('winMax').title`), '最大化');
+  assert.equal(await run(`$('winMax').classList.contains('restore')`), false);
+  assert.equal(await run(`getComputedStyle($('winMax').querySelector('.ico-restore')).display`), 'none');
+  assert.equal(await run(`getComputedStyle($('winMax').querySelector('.ico-max')).display !== 'none'`), true);
+  await run(`$('winMax').click()`);
+  assert.deepEqual(await run(`window.lab.testWindowCalls()`), ['maximize']);
+  await run(`applyLang('en')`);
+
   assert.deepEqual(errors, []);
-  console.log('PASS: filters and warnings in all 38 languages; library grouping, optional backends, History/copy, context actions, keyboard access, restore guards, cache clearing and light/dark/RTL layouts.');
+  console.log('PASS: filters and warnings in all 38 languages; library grouping, optional backends, History/copy, context actions, keyboard access, restore guards, cache clearing, the drawn title bar and light/dark/RTL layouts.');
   console.log(`Screenshots: ${output}`);
   clearTimeout(timeout);
   win.destroy();

@@ -69,6 +69,7 @@ contextBridge.exposeInMainWorld('lab', {
   skipUpdate: (version) => ipcRenderer.invoke('update-skip', version),
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
   onUpdateProgress: (fn) => ipcRenderer.on('update-progress', (_e, progress) => fn(progress)),
+  onWindowState: (fn) => ipcRenderer.on('window-state', (_e, maximized) => fn(maximized)),
   addFolder: () => ipcRenderer.invoke('add-folder'),
   removeFolder: (dir) => ipcRenderer.invoke('remove-folder', dir),
   excludeRoot: (dir) => ipcRenderer.invoke('exclude-root', dir),

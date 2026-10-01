@@ -1432,6 +1432,11 @@ select option { background: var(--panel); color: var(--text); }
   transition: background .14s ease, color .14s ease;
 }
 .win svg { width: 16px; height: 16px; }
+/* The maximise button carries both glyphs and the class on the button picks
+   one, so the state has a single home: the element itself. */
+.win .ico-restore { display: none; }
+.win.restore .ico-max { display: none; }
+.win.restore .ico-restore { display: block; }
 .win:hover { background: var(--glass); color: var(--text); }
 /* Closing is the one control worth colouring, and only under the pointer. */
 .win.close:hover { background: #d93b3b; color: #fff; }
@@ -2767,4 +2772,29 @@ body { cursor: default; }
   color: var(--accent); font-weight: 750; letter-spacing: .04em;
   border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
   background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* ---------------- switching skins ----------------
+   Picking a skin in settings swaps the whole surface in one cross-fade: the
+   old frame leaves fast, the new one settles in over it. Both skins share this
+   moment, so it lives here rather than in either skin's own file. Nothing else
+   may move while it is in flight - an entrance animation (`both` fill plus a
+   stagger delay) would be caught frozen at its start inside the new snapshot
+   and then pop in once the fade lands - so every animation pauses for the
+   quarter second, loops included. */
+.skin-switching *,
+.skin-switching *::before,
+.skin-switching *::after { animation: none !important; }
+.skin-switching::view-transition-old(root) { animation: skin-swap-out .16s ease both; }
+.skin-switching::view-transition-new(root) { animation: skin-swap-in .28s var(--ease, cubic-bezier(.2, .8, .2, 1)) both; }
+.skin-switching::view-transition-group(root) { animation-duration: .28s; }
+@keyframes skin-swap-out { to { opacity: 0; } }
+@keyframes skin-swap-in {
+  from { opacity: 0; transform: translateY(6px) scale(.99); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skin-switching::view-transition-old(root),
+  .skin-switching::view-transition-new(root),
+  .skin-switching::view-transition-group(root) { animation: none; }
 }
