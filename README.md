@@ -4,8 +4,7 @@
   <strong>简体中文</strong> &nbsp;|&nbsp; <a href="README.zh-TW.md"><strong>繁體中文</strong></a>
 </p>
 
-全界面与游戏内叠加层完整汉化，并修复部分游戏自带 D3D12 运行时被误判冲突导致无法安装的问题
-
+使用中文增强版遇到不懂的或者是使用问题可以去kook服务器上发信息：https://kook.vip/6pSyqG
 ## 这是什么
 
 基于开源项目 [DLSS 5 Swapper](https://github.com/rakanki911/DLSS5-Swapper) 2.2.7 的中文增强版，为 NVIDIA DLSS 5（神经渲染）提供游戏/模拟器的一键安装与管理。
@@ -17,6 +16,7 @@
 - **加入了新手教程**
 - **加入了新版本更新检测**
 - **加入了缓存清理**
+- 详细看更新日志
 
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/41956418-cb59-4a4a-b938-bc864b182587" />
 
