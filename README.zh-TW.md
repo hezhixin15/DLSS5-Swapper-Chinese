@@ -8,6 +8,8 @@
 
 有不懂的或者是要反饋問題可以給：515629879@qq.com 發訊息
 
+我的kook服务器有问题可以在里面问我：https://kook.vip/6pSyqG
+
 ## 這是什麼
 
 這是基於開源專案 [DLSS 5 Swapper](https://github.com/rakanki911/DLSS5-Swapper) 2.2.7 的中文增強版，為 NVIDIA DLSS 5（神經渲染）提供遊戲／模擬器的一鍵安裝與管理。
