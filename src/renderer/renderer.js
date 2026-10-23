@@ -714,15 +714,20 @@ async function renderSettings() {
 async function scanAll() {
   const pending = state.games.filter((g) => !g.cached);
   let scanned = state.games.length - pending.length;
-  for (const game of pending) {
-    game.cached = await window.lab.scan(game.dir);
-    setStatus(t('scanning'), (++scanned / state.games.length) * 100);
-    renderGames();
-    renderRecent();
+  // A scan that throws used to abandon the art pass below it, leaving the grid
+  // without covers until a restart. Whatever happens, the pass still runs.
+  try {
+    for (const game of pending) {
+      game.cached = await window.lab.scan(game.dir);
+      setStatus(t('scanning'), (++scanned / state.games.length) * 100);
+      renderGames();
+      renderRecent();
+    }
+  } finally {
+    setStatus(t('ready'), 100);
+    log(t('libReady', state.games.length, state.games.filter((g) => g.cached && g.cached.dx12).length));
+    fetchArt();
   }
-  setStatus(t('ready'), 100);
-  log(t('libReady', state.games.length, state.games.filter((g) => g.cached && g.cached.dx12).length));
-  fetchArt();
 }
 
 // Art is pulled for the whole grid rather than only when a game is opened, so
@@ -736,12 +741,18 @@ async function fetchArt() {
   let done = 0;
   setStatus(t('fetchingArt'), 0);
   for (const game of missing) {
-    const art = await window.lab.artFetch(game.dir, game.name, game.appid);
-    if (art && art.cover) {
-      game.poster = { url: art.cover, tall: true, custom: false };
-      renderGames();
-      renderRecent();
-    }
+    // One failed lookup must not abandon the rest of the grid.
+    try {
+      const art = await window.lab.artFetch(game.dir, game.name, game.appid);
+      // Apps without a portrait capsule only ever have a hero/header; the
+      // sheet shows it, so the grid must too or those cards stay as initials.
+      const cardArt = art && (art.cover || art.hero) ? (art.cover || art.hero) : null;
+      if (cardArt) {
+        game.poster = { url: cardArt, tall: Boolean(art.cover), custom: false };
+        renderGames();
+        renderRecent();
+      }
+    } catch { /* keep going - the next game's cover is unrelated */ }
     setStatus(t('fetchingArt'), (++done / missing.length) * 100);
   }
   setStatus(t('ready'), 100);
@@ -1105,6 +1116,17 @@ async function openSheet(dir, keepLog = false) {
   if (!routeChoice.has(dir) && d.installedRoute) routeChoice.set(dir, d.installedRoute);
 
   const info = art && !art.error && !art.none ? art : null;
+  // The grid's own art pass runs once during boot; if that pass is interrupted
+  // the cards stay as initials forever even though the art is already here.
+  // Feed what the sheet just fetched back into the game so the card picks it up.
+  // Steam ships no portrait capsule (library_600x900) for a good number of
+  // apps, so the hero/header is the only shape left - the sheet already falls
+  // back to it, and the grid must do the same or those cards never fill.
+  const cardArt = info && (info.cover || info.hero) ? (info.cover || info.hero) : null;
+  if (cardArt && (!g.poster || !g.poster.tall)) {
+    g.poster = { url: cardArt, tall: Boolean(info.cover), custom: false };
+    renderGames();
+  }
   const tallArt = (info && info.cover) || (g.poster && g.poster.tall ? g.poster.url : null);
   // A game too new for a portrait capsule ships only wide art - Steam has no
   // library_600x900 for it at all. Showing that beats two initials, but it has
