@@ -1110,6 +1110,14 @@ async function openSheet(dir, keepLog = false) {
   if (!routeChoice.has(dir) && d.installedRoute) routeChoice.set(dir, d.installedRoute);
 
   const info = art && !art.error && !art.none ? art : null;
+  // The sheet and the grid must not disagree: art found here belongs on the
+  // card too. A portrait poster already on the card wins, and a poster the
+  // person chose is never replaced.
+  if (info && (info.cover || info.hero) && !(g.poster && (g.poster.tall || g.poster.custom))) {
+    g.poster = { url: info.cover || info.hero, tall: Boolean(info.cover), custom: false };
+    renderGames();
+    renderRecent();
+  }
   const tallArt = (info && info.cover) || (g.poster && g.poster.tall ? g.poster.url : null);
   // A game too new for a portrait capsule ships only wide art - Steam has no
   // library_600x900 for it at all. Showing that beats two initials, but it has
