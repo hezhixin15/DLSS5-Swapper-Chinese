@@ -350,7 +350,49 @@ app.whenReady().then(async () => {
   await sheetReady();
   assert.equal(await run(`${coverBox}.classList.contains('wide')`), false);
   assert.equal(await run(`getComputedStyle(${coverBox}.querySelector('img')).objectFit`), 'cover');
-  await run(`window.lab.testArtFetch({ none: true })`);
+
+  // The grid draws the same fallback: a wide record is art, not two initials.
+  // And a lookup the sheet already made must fill the card behind it without
+  // a reload. A poster the person chose is never replaced.
+  const gridCard = `[...document.querySelectorAll('#groups .card')].find(card => card.dataset.dir === state.games[0].dir)`;
+  const recentCard = `[...document.querySelectorAll('#recents .rcard')].find(card => card.dataset.dir === state.games[0].dir)`;
+  await run(`closeSheet(); applyLang('en'); show('games');
+    state.games.forEach(g => { g.poster = { url: ${JSON.stringify(banner)}, tall: true, custom: false }; });
+    state.games[0].poster = null;
+    state.recents = [{ dir: state.games[0].dir, at: Date.now() }];
+    state.art = true;
+    window.lab.testArtFetch({ appid: 1867240, name: 'WARDOGS', released: 2025, genres: [], cover: null, hero: ${JSON.stringify(banner)} });
+    renderGames(); renderRecent();`);
+  await run(`fetchArt()`);
+  assert.equal(await run(`state.games[0].poster.tall`), false);
+  assert.equal(await run(`Boolean(${gridCard} && ${gridCard}.querySelector('.poster.wide'))`), true);
+  assert.equal(await run(`Boolean(${recentCard} && ${recentCard}.querySelector('img'))`), true);
+
+  // The control: a real portrait capsule stays portrait in the grid too.
+  await run(`state.games[0].poster = null;
+    window.lab.testArtFetch({ appid: 870780, name: 'CONTROL Ultimate Edition', released: 2019, genres: [], cover: ${JSON.stringify(art(600, 900))}, hero: ${JSON.stringify(banner)} });
+    fetchArt()`);
+  assert.equal(await run(`state.games[0].poster.tall`), true);
+  assert.equal(await run(`Boolean(${gridCard} && ${gridCard}.querySelector('.poster.wide'))`), false);
+
+  // Opening the sheet is enough: both the card and the recent row fill in.
+  await run(`state.games[0].poster = null; renderGames();
+    state.recents = [{ dir: state.games[0].dir, at: Date.now() }]; renderRecent();
+    window.lab.testArtFetch({ appid: 1867240, name: 'WARDOGS', released: 2025, genres: [], cover: null, hero: ${JSON.stringify(banner)} });`);
+  await run(`openSheet(state.games[0].dir)`);
+  assert.equal(await run(`state.games[0].poster.tall`), false);
+  assert.equal(await run(`Boolean(${gridCard} && ${gridCard}.querySelector('.poster.wide'))`), true);
+  assert.equal(await run(`Boolean(${recentCard} && ${recentCard}.querySelector('img'))`), true);
+
+  // A poster the person chose wins over anything fetched.
+  await run(`state.games[0].poster = { url: ${JSON.stringify(banner)}, tall: true, custom: true }; renderGames();
+    window.lab.testArtFetch({ appid: 870780, name: 'CONTROL Ultimate Edition', released: 2019, genres: [], cover: ${JSON.stringify(art(600, 900))}, hero: null });`);
+  await run(`openSheet(state.games[0].dir)`);
+  assert.equal(await run(`state.games[0].poster.custom`), true);
+  assert.equal(await run(`state.games[0].poster.url`), banner);
+
+  await run(`closeSheet(); state.art = false; state.games.forEach(g => { delete g.poster; });
+    window.lab.testArtFetch({ none: true }); renderGames();`);
   await run(`closeSheet(); applyLang('en'); show('history'); renderHistory()`);
   assert.equal(await run(`document.querySelectorAll('.hist-row').length`), 2, 'install updates History without reopening the app');
   await run(`$('copyHistory').onclick()`);
