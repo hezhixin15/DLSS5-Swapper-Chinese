@@ -734,18 +734,23 @@ async function fetchArt() {
   if (!missing.length) return;
 
   let done = 0;
+  let found = 0;
   setStatus(t('fetchingArt'), 0);
   for (const game of missing) {
     const art = await window.lab.artFetch(game.dir, game.name, game.appid);
-    if (art && art.cover) {
-      game.poster = { url: art.cover, tall: true, custom: false };
+    // A game too new for a portrait capsule ships only the wide store banner.
+    // That is still artwork: a letterboxed banner beats two initials.
+    const cardArt = art && (art.cover || art.hero);
+    if (cardArt) {
+      game.poster = { url: cardArt, tall: Boolean(art.cover), custom: false };
+      found += 1;
       renderGames();
       renderRecent();
     }
     setStatus(t('fetchingArt'), (++done / missing.length) * 100);
   }
   setStatus(t('ready'), 100);
-  log(t('artFound', missing.filter((g) => g.poster && g.poster.tall).length, missing.length));
+  log(t('artFound', found, missing.length));
 }
 
 async function load() {
