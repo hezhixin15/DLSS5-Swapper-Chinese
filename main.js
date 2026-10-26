@@ -1515,6 +1515,10 @@ ipcMain.handle('community-palette-merge', (_event, palettes) =>
 // game cached as having no banner has to be looked at again.
 const ART_RULES = 5;
 
+// A record with neither shape is not artwork, it is a failed download that got
+// written down. Returning it would stop every later launch from trying again.
+const usableArt = (record) => Boolean(record && (record.none || record.cover || record.hero));
+
 // A community card is a game somebody else has, so there is no folder to key
 // its artwork by - but a card keyed "steam:<appid>" carries the appid itself,
 // which is the best lookup there is. Everything else falls back to the title.
@@ -1602,7 +1606,7 @@ ipcMain.handle('art-fetch', async (_event, dir, name, appid) => {
   const state = loadState();
   const key = keyFor(dir);
   const cached = state.art && state.art[key];
-  if (cached && cached.rules === ART_RULES) return cached;
+  if (cached && cached.rules === ART_RULES && usableArt(cached)) return cached;
 
   try {
     const hit = await art.look(name, appid);
@@ -1620,7 +1624,11 @@ ipcMain.handle('art-fetch', async (_event, dir, name, appid) => {
     if (!record.hero && hit.heroFallbackUrl) record.hero = await grab(hit.heroFallbackUrl, '-hero.jpg');
 
     state.art = state.art || {};
-    state.art[key] = record;
+    // Both shapes failing means offline, a rate limit, or a stale asset URL.
+    // Keep no record for it, so the next launch looks again instead of pinning
+    // the card to two initials forever.
+    if (record.cover || record.hero) state.art[key] = record;
+    else delete state.art[key];
     saveState(state);
     return record;
   } catch (err) {
