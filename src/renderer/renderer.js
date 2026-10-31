@@ -159,6 +159,11 @@ function cardMarkup(g) {
   const api = s ? (s.api || reasonText(s.reason) || '—') : t('scanning');
   const dx12 = Boolean(s && s.dx12);
   const hasDlss = gameFilters.hasDlss(g);
+  // A game the list flags says so on its card. Unlike the tool buttons this
+  // cannot wait for a hover: the point is that it is seen before Install.
+  const flagged = g.antiCheat
+    ? `<span class="ac-flag" title="${esc(t('acListedAs') + ': ' + g.antiCheat.name)}" role="img" aria-label="${esc(t('acBadge'))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.7 2.8 8 7 10 4.2-2 7-5.3 7-10V6z"/><path d="m9 12 2 2 4-5"/></svg></span>`
+    : '';
   const status = s && s.ok
     ? `<span class="dot-s ${hasDlss ? 'on' : ''}"></span>${s.dlss ? esc(short(s.dlss)) : t(hasDlss ? 'hasDlss' : 'noDlss')}
        <span class="dot-s ${s.addon || s.optiscaler ? 'on' : ''}" style="margin-inline-start:8px"></span>${s.optiscaler ? 'OptiScaler' : t('addonShort')}`
@@ -177,6 +182,7 @@ function cardMarkup(g) {
         <button class="tool" data-act="hide" title="${esc(t('menuHide'))}">✕</button>
       </div>
       <span class="badge${dx12 ? ' dx12' : ''}">${esc(api)}</span>
+      ${flagged}
       ${poster}
       <div class="name">${esc(g.name)}</div>
     </article>`;
@@ -454,6 +460,7 @@ function skinPicker(current) {
 
 async function renderSettings() {
   const info = await window.lab.settings();
+  const ac = info.antiCheat || { detect: true, mode: 'prompt', entries: 0, source: 'none' };
   $('settings').innerHTML = skinPicker(info.skin === 'two' ? 'two' : 'one') + `
     <div class="set-row"><div><div class="k">${t('setGroupGames')}</div>
       <div class="v" id="setGroupGamesHint">${t('setGroupGamesHint')}</div></div>
@@ -495,6 +502,21 @@ async function renderSettings() {
     <div class="set-row"><div><div class="k">${t('getLatest')}</div>
       <div class="v">${t('manualCheckHint')}</div></div>
       <button class="ghost sm" id="setCheckUpdate">${t('getLatest')}</button></div>
+    <div class="set-row"><div><div class="k">${t('setAntiCheat')}</div>
+      <div class="v" id="setAntiCheatHint">${t('setAntiCheatHint')}</div></div>
+      <button class="setting-switch" id="setAntiCheat" type="button" role="switch"
+        aria-checked="${ac.detect ? 'true' : 'false'}" aria-label="${t('setAntiCheat')}" aria-describedby="setAntiCheatHint">
+        <span class="knob"></span></button></div>
+    <div class="set-row"><div><div class="k">${t('setAntiCheatMode')}</div>
+      <div class="v">${t('acStatus', ac.entries)} · ${ac.source === 'downloaded' ? t('acSourceDownloaded') : ac.source === 'bundled' ? t('acSourceBundled') : t('acSourceNone')}</div></div>
+      <select class="setting-select" id="setAntiCheatMode" aria-label="${t('setAntiCheatMode')}">
+        <option value="prompt"${ac.mode === 'prompt' ? ' selected' : ''}>${t('acModePrompt')}</option>
+        <option value="auto"${ac.mode === 'auto' ? ' selected' : ''}>${t('acModeAuto')}</option>
+        <option value="off"${ac.mode === 'off' ? ' selected' : ''}>${t('acModeOff')}</option>
+      </select></div>
+    <div class="set-row"><div><div class="k">${t('setAntiCheatCheck')}</div>
+      <div class="v">${t('setAntiCheatCheckHint')}</div></div>
+      <button class="ghost sm" id="setAntiCheatCheck">${t('setAntiCheatCheck')}</button></div>
     ${state.lang === 'zh' || state.lang === 'zh-TW' ? `
     <div class="set-row"><div><div class="k">${t('setReopenTutorial')}</div>
       <div class="v">${t('setReopenTutorialHint')}</div></div>
@@ -644,6 +666,29 @@ async function renderSettings() {
     }
   };
   $('setCheckUpdate').onclick = () => checkForUpdates({ manual: true });
+  $('setAntiCheat').onclick = async () => {
+    const toggle = $('setAntiCheat');
+    const enabled = toggle.getAttribute('aria-checked') !== 'true';
+    toggle.disabled = true;
+    try {
+      await window.lab.setAntiCheatDetect(enabled);
+      toggle.setAttribute('aria-checked', String(enabled));
+      // What the cards say about their games changes with the switch.
+      await refreshAntiCheat();
+    } catch (error) {
+      log(error.message);
+    } finally {
+      toggle.disabled = false;
+    }
+  };
+  $('setAntiCheatMode').onchange = async () => {
+    const select = $('setAntiCheatMode');
+    select.disabled = true;
+    try { await window.lab.setAntiCheatListMode(select.value); }
+    catch (error) { log(error.message); }
+    finally { select.disabled = false; }
+  };
+  $('setAntiCheatCheck').onclick = () => checkAntiCheatList({ manual: true });
   // Only the two Chinese scripts carry guide copy, so the row exists for them
   // alone rather than showing a button that would open nothing.
   const reopenTutorial = $('setReopenTutorial');
@@ -760,6 +805,7 @@ async function load() {
   state.newDlss = (await window.lab.details(state.games[0] ? state.games[0].dir : '')).newDlss;
   renderGames();
   renderRecent();
+  renderAntiCheatNotice();
   log(`Found ${state.games.length} games across ${new Set(state.games.map((g) => g.launcher)).size} sources`);
   await scanAll();
 }
@@ -776,6 +822,8 @@ async function pickGame(dir) {
   if (game) {
     game.cached = cached;
     renderGames();
+    // A game just added is a game just checked against the list.
+    renderAntiCheatNotice();
     log(`Game: ${cached.exe || '—'} (${cached.api || 'unknown'})`);
     openSheet(dir);
   }
@@ -904,8 +952,11 @@ function wireNotes() {
 }
 
 function installOptions(d, pick, dir) {
+  // Which entry in the list flagged this game, said next to the generic
+  // sentence: a name is what the reader can look up and argue with.
+  const listed = (pick && pick.antiCheatMatch) || d.antiCheatMatch;
   const warning = (d.antiCheatWarning || pick?.antiCheatWarning)
-    ? `<div class="emu-note anti-cheat-warning" role="alert"><b>${t('antiCheatWarningTitle')}</b><span>${t('antiCheatWarning')}</span></div>` : '';
+    ? `<div class="emu-note anti-cheat-warning" role="alert"><b>${t('antiCheatWarningTitle')}</b><span>${t('antiCheatWarning')}${listed ? ` <b>${t('acListedAs')}: ${esc(listed.name)}</b>` : ''}</span></div>` : '';
   const crashBanner = (d.crashWarning || pick?.crashWarning)
     ? `<div class="emu-note anti-cheat-warning" role="alert"><b>${t('crashWarningTitle')}</b><span>${t('crashWarning')}</span></div>` : '';
   if (!pick) return warning + crashBanner;
@@ -971,6 +1022,78 @@ function showToast(message) {
   toast.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// ---------------- anti-cheat list ----------------
+// The list is what the warnings are made of. It is checked once per launch
+// like the release check: nothing is written unless the setting allows it,
+// and what changed is shown before it is applied - the names in it are the
+// whole point of reading it.
+
+// Cards show which list entry flags a game before it is even opened, so a
+// match is worth saying out loud once per start rather than only in a tooltip.
+function renderAntiCheatNotice() {
+  const notice = $('antiCheatNotice');
+  if (!notice) return;
+  const named = (state.games || []).filter((g) => g.antiCheat);
+  if (!named.length) { notice.innerHTML = ''; notice.hidden = true; return; }
+  notice.hidden = false;
+  notice.innerHTML = `<div class="emu-note anti-cheat-warning" role="alert">
+    <b>${t('acNotice', named.length)}</b>
+    <span>${esc(named.map((g) => `${g.name} → ${g.antiCheat.name}`).join(' · '))}</span></div>`;
+}
+
+async function refreshAntiCheat() {
+  // Re-reading the library is what redraws the badges; the switch and the
+  // downloaded list both change what a card says about its game.
+  state.games = await window.lab.library();
+  renderGames();
+  renderAntiCheatNotice();
+}
+
+async function checkAntiCheatList({ manual = false } = {}) {
+  if (!window.lab.antiCheatCheck) return;
+  let result = null;
+  try { result = await window.lab.antiCheatCheck(manual); } catch { return; }
+  if (!result || !result.ok) {
+    // A failed lookup must not look like "nothing new", but it is also not
+    // worth a dialog: the list already in place keeps doing its job.
+    if (manual) showToast(t('updateCheckFailedShort'));
+    return;
+  }
+  if (result.applied) {
+    showToast(t('acApplied'));
+    await refreshAntiCheat();
+    return;
+  }
+  if (!result.update) {
+    if (manual) showToast(t('acUpToDate'));
+    return;
+  }
+  const change = result.change || { added: [], removed: [] };
+  const names = [...change.added.map((n) => `+ ${n}`), ...change.removed.map((n) => `- ${n}`)];
+  const body = [
+    t('acUpdateBody'),
+    t('acChange', change.added.length, change.removed.length),
+    names.length ? names.slice(0, 10).join('\n') + (names.length > 10 ? `\n${t('acMore', names.length - 10)}` : '') : t('acNone')
+  ].join('\n\n');
+  const go = await ask({
+    icon: 'shield', title: t('acUpdateTitle'), body,
+    confirm: t('acDownload'), cancel: t('acIgnore'), tone: 'accent'
+  });
+  if (!go) {
+    // Ignored means this version of the file. The next change is offered again.
+    try { await window.lab.antiCheatIgnore(); } catch { /* a failed write is not worth asking twice */ }
+    return;
+  }
+  let applied = null;
+  try { applied = await window.lab.antiCheatApply(); } catch (error) { applied = { ok: false, message: error.message }; }
+  if (applied && applied.ok) {
+    showToast(t('acApplied'));
+    await refreshAntiCheat();
+  } else {
+    showToast(t('acApplyFailed'));
+  }
 }
 
 let pendingUpdate = null;
@@ -1298,11 +1421,33 @@ async function runJob(kind, dir) {
 
   const pick = sheetDetails ? chosenExe(sheetDetails, dir) : null;
 
-  // The driver that cannot run the neural pass is worth one question rather
-  // than a line in a log nobody reads (#229, #258, #104). Asked once per
-  // driver version, and never a refusal - the install still works, and people
-  // do install deliberately on these drivers.
+  // Stopping before the work starts is the same whatever the question was:
+  // hand the sheet back the way it was before the button was pressed.
+  const stopJob = (message) => {
+    if (message) jobLog(message);
+    jobRunning = false;
+    install.textContent = t('install');
+    install.disabled = restoreBtn.disabled = false;
+    document.querySelectorAll('#sheet select, #exeSelect, #sheetClose').forEach(e => { e.disabled = false; });
+  };
+
   if (kind === 'install') {
+    // The list is checked when the app opens and the download takes a few
+    // seconds. Installing inside that window would warn with whatever is
+    // already known, which is the person's call to make, not a surprise.
+    let antiCheat = null;
+    try { antiCheat = await window.lab.antiCheatState(); } catch { /* no answer is no reason to stop */ }
+    if (antiCheat && (antiCheat.checking || !antiCheat.ready)) {
+      const go = await ask({
+        icon: 'shield', title: t('acPendingTitle'), body: t('acPendingBody'),
+        confirm: t('acSkip'), cancel: t('cancel'), tone: 'accent'
+      });
+      if (!go) { stopJob(t('operationCancelled')); return; }
+    }
+    // The driver that cannot run the neural pass is worth one question rather
+    // than a line in a log nobody reads (#229, #258, #104). Asked once per
+    // driver version, and never a refusal - the install still works, and people
+    // do install deliberately on these drivers.
     let driver = { fault: false };
     try { driver = await window.lab.driverNeuralFault(); } catch { /* no nvidia-smi is not a reason to stop */ }
     if (driver.fault && !driver.acknowledged) {
@@ -1310,14 +1455,7 @@ async function runJob(kind, dir) {
         icon: 'warning', title: t('driverFaultTitle'), body: t('driverFaultBody', driver.names),
         confirm: t('driverFaultGo'), cancel: t('cancel')
       });
-      if (!go) {
-        jobLog(t('driverFaultStopped'));
-        jobRunning = false;
-        install.textContent = t('install');
-        install.disabled = restoreBtn.disabled = false;
-        document.querySelectorAll('#sheet select, #exeSelect, #sheetClose').forEach(e => { e.disabled = false; });
-        return;
-      }
+      if (!go) { stopJob(t('driverFaultStopped')); return; }
       try { await window.lab.acknowledgeDriver(driver.names); } catch { /* asking twice is not a failure */ }
     }
   }
@@ -1801,6 +1939,9 @@ document.addEventListener('drop', (e) => e.preventDefault());
     state.skippedUpdates = [];
   }
   if (state.autoUpdateCheck) checkForUpdates();
+  // The anti-cheat list is checked the same way: once per launch, silent, and
+  // nothing is downloaded unless the setting allows it.
+  checkAntiCheatList();
   state.logo = boot;
   paintBrand();
   state.art = (await window.lab.artStatus()).available;

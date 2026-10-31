@@ -696,7 +696,9 @@ function antiCheatState() {
     detect: prefs.detect,
     mode: prefs.mode,
     source: antiCheatLoaded.source,
-    entries: antiCheatLoaded.names.length,
+    // What is actually consulted: with detection off the file is still there,
+    // but nothing warns from it.
+    entries: prefs.detect ? antiCheatLoaded.names.length : 0,
     file: path.join(app.getPath('userData'), antiCheatListStore.FILE_NAME),
     updatedAt: prefs.updatedAt,
     checkedAt: prefs.checkedAt,
@@ -1941,6 +1943,7 @@ ipcMain.handle('details', async (_event, dir) => {
       emulator: e.emulator,
       installIssue: compatibility.targetIssue(dir, e.path),
       antiCheatWarning: compatibility.hasAntiCheat(dir, e.path, gameName(dir)),
+      antiCheatMatch: compatibility.antiCheatMatch(dir, e.path, gameName(dir)),
       crashWarning: Boolean(crashWarning.known(e.path)),
       hasNativeDlss,
       apiOverride: apiPreference(state, dir, e.path),

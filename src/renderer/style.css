@@ -849,6 +849,27 @@ select option { background: var(--panel); color: var(--text); }
 /* The label side has to take the free space, or the paths inside it stay
    text-width and their buttons trail each one at a different offset. */
 .set-row > div:first-child { flex: 1; min-width: 0; }
+/* The list-update row picks one of three ways to update, not on or off. */
+.setting-select {
+  min-width: 200px; padding: 11px 12px; border-radius: 11px;
+  border: 1px solid var(--stroke); background: var(--panel-2); color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 650; outline: none;
+}
+.setting-select:focus { border-color: var(--accent); }
+/* A game the anti-cheat list flags says so on its card. Unlike the tool
+   buttons this cannot wait for a hover: the warning has to be seen before
+   anybody reaches for Install. */
+.ac-flag {
+  position: absolute; top: 8px; inset-inline-end: 8px; z-index: 3;
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px;
+  background: rgba(165, 29, 39, .92); color: #fff;
+}
+.ac-flag svg {
+  width: 15px; height: 15px; fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+#antiCheatNotice { margin-bottom: 18px; }
+#antiCheatNotice .emu-note { margin-top: 0; }
 .setting-switch {
   flex: none; position: relative; width: 48px; height: 27px; padding: 0;
   border-radius: 999px; cursor: pointer; background: var(--glass);
