@@ -182,9 +182,8 @@ function cardMarkup(g) {
         <button class="tool" data-act="hide" title="${esc(t('menuHide'))}">✕</button>
       </div>
       <span class="badge${dx12 ? ' dx12' : ''}">${esc(api)}</span>
-      ${flagged}
       ${poster}
-      <div class="name">${esc(g.name)}</div>
+      <div class="name">${flagged}${esc(g.name)}</div>
     </article>`;
 }
 
@@ -1038,9 +1037,12 @@ function renderAntiCheatNotice() {
   const named = (state.games || []).filter((g) => g.antiCheat);
   if (!named.length) { notice.innerHTML = ''; notice.hidden = true; return; }
   notice.hidden = false;
+  // Say the list entry only where it differs from the game's own name; a
+  // warning that reads "X → X" just looks broken.
+  const lines = named.map((g) => (g.antiCheat.name === g.name ? g.name : `${g.name} → ${g.antiCheat.name}`));
   notice.innerHTML = `<div class="emu-note anti-cheat-warning" role="alert">
     <b>${t('acNotice', named.length)}</b>
-    <span>${esc(named.map((g) => `${g.name} → ${g.antiCheat.name}`).join(' · '))}</span></div>`;
+    <span>${esc(lines.join(' · '))}</span></div>`;
 }
 
 async function refreshAntiCheat() {
@@ -1440,7 +1442,7 @@ async function runJob(kind, dir) {
     if (antiCheat && (antiCheat.checking || !antiCheat.ready)) {
       const go = await ask({
         icon: 'shield', title: t('acPendingTitle'), body: t('acPendingBody'),
-        confirm: t('acSkip'), cancel: t('cancel'), tone: 'accent'
+        confirm: t('acSkip'), cancel: t('cancel')
       });
       if (!go) { stopJob(t('operationCancelled')); return; }
     }

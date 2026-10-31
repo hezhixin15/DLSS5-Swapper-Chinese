@@ -856,17 +856,18 @@ select option { background: var(--panel); color: var(--text); }
   font: inherit; font-size: 13px; font-weight: 650; outline: none;
 }
 .setting-select:focus { border-color: var(--accent); }
-/* A game the anti-cheat list flags says so on its card. Unlike the tool
-   buttons this cannot wait for a hover: the warning has to be seen before
-   anybody reaches for Install. */
+/* A game the anti-cheat list flags says so on its card, beside its name. The
+   corners are taken - the API badge on the right, the tool buttons on the
+   left - and the warning has to be seen before anybody reaches for Install,
+   so it lives where the eye already reads the card. */
 .ac-flag {
-  position: absolute; top: 8px; inset-inline-end: 8px; z-index: 3;
-  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px;
+  display: inline-grid; place-items: center; width: 18px; height: 18px;
+  margin-inline-end: 5px; border-radius: 6px; vertical-align: -3px;
   background: rgba(165, 29, 39, .92); color: #fff;
 }
 .ac-flag svg {
-  width: 15px; height: 15px; fill: none; stroke: currentColor;
-  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+  width: 12px; height: 12px; fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
 #antiCheatNotice { margin-bottom: 18px; }
 #antiCheatNotice .emu-note { margin-top: 0; }
