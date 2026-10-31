@@ -26,7 +26,8 @@ test('real IPC persists per-EXE choices, validates selection, uses effective rou
         ipcMain: { handle: (name, fn) => handlers.set(name, fn) },
         shell: { openExternal: async url => { if (failOpen) throw new Error('browser unavailable'); opened.push(url); } } },
       './src/core/scan.js': { scanGame: async () => scan },
-      './src/core/compatibility': { assertSafeTarget() {}, hasAntiCheat: () => false, targetIssue: () => null },
+      './src/core/compatibility': { assertSafeTarget() {}, hasAntiCheat: () => false, targetIssue: () => null,
+        antiCheatMatch: () => null, setAntiCheatList() {} },
       './src/core/install-guards': { assertGameClosed: async () => {} },
       './src/core/runtime-components.js': { missingVCRuntime: () => [], ensureLumenite: async () => null, ensureDgVoodoo: async () => 'fixture' },
       './src/core/backend-manager': { readManifest: () => old, install: async config => {

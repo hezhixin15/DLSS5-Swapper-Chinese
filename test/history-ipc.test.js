@@ -41,7 +41,8 @@ test('install/restore IPC records all backends, not failures/cancels, and valida
       if (scanFails) throw new Error('Executable scan is unavailable');
       return { chosen: target, exeCandidates: [target], hasNativeDlss: true };
     } },
-    './src/core/compatibility': { assertSafeTarget() {}, hasAntiCheat: () => protectedTarget },
+    './src/core/compatibility': { assertSafeTarget() {}, hasAntiCheat: () => protectedTarget,
+      antiCheatMatch: () => null, setAntiCheatList() {} },
     './src/core/install-guards': { assertGameClosed: async () => {}, antiCheatPresent: () => false, gpuInfo: async () => [{}], gpuSupported: () => true, gpuModelSupported: () => true, driverSupported: () => true },
     './src/shared/install-routes': { nativeDlssPresent: () => true, routesFor: () => ['native', 'feeder', 'optiscaler'], recommendedRoute: () => 'native' },
     './src/core/runtime-components.js': { missingVCRuntime: () => [], ensureLumenite: async () => null },

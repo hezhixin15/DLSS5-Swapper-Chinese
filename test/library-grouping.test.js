@@ -23,6 +23,12 @@ function launch(profile) {
         ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) }
       };
       if (name === './package.json') return { version: 'test' };
+      // The anti-cheat list is read during startup and adds settings of its
+      // own; keep the real modules so this sandbox behaves like the app.
+      if (name === './src/core/compatibility') return require('../src/core/compatibility');
+      if (name === './src/core/anti-cheat-list') return require('../src/core/anti-cheat-list');
+      if (name === './src/core/anti-cheat-list-store') return require('../src/core/anti-cheat-list-store');
+      if (name === './src/anti-cheat-list-source') return require('../src/anti-cheat-list-source');
       if (name.startsWith('./src/')) return {};
       return require(name);
     }

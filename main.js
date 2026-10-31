@@ -35,6 +35,9 @@ const journal = require('./src/core/file-journal');
 const guards = require('./src/core/install-guards');
 const compatibility = require('./src/core/compatibility');
 const antiCheatWarning = require('./src/shared/anti-cheat-warning');
+const antiCheatList = require('./src/core/anti-cheat-list');
+const antiCheatListStore = require('./src/core/anti-cheat-list-store');
+const antiCheatListSource = require('./src/anti-cheat-list-source');
 const crashWarning = require('./src/shared/crash-warning');
 const featureI18n = require('./src/shared/feature-i18n');
 const featureText = (key, ...args) => featureI18n.t(loadState().lang, key, ...args);
@@ -645,8 +648,147 @@ ipcMain.handle('settings', () => {
     autoUpdateCheck: state.autoUpdateCheck !== false,
     skippedUpdates: [...(state.skippedUpdates || [])],
     safeGraphics: state.safeGraphics === true,
-    skin: state.skin === 'two' ? 'two' : 'one'
+    skin: state.skin === 'two' ? 'two' : 'one',
+    antiCheat: antiCheatState()
   };
+});
+
+// ---------- anti-cheat list ----------
+// The list is loaded before anything can be installed and kept in memory:
+// matching is a string comparison and must never wait on the network. Only
+// the download may take ten seconds, and it replaces the list whole.
+const ANTI_CHEAT_MODES = ['prompt', 'auto', 'off'];
+const ANTI_CHEAT_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+let antiCheatLoaded = { names: [], source: 'none', hash: '', text: '' };
+let antiCheatReady = false;
+let antiCheatChecking = false;
+// A downloaded list waiting for the user's word. Held in memory, not on disk:
+// saying no must leave nothing behind.
+let antiCheatPending = null;
+
+function antiCheatPrefs(state) {
+  return {
+    // Off is not "no downloads" but "no list at all": the app then warns the
+    // way it did before this existed, and the setting says coverage is worse.
+    detect: state.antiCheatDetect !== false,
+    mode: ANTI_CHEAT_MODES.includes(state.antiCheatListMode) ? state.antiCheatListMode : 'prompt',
+    skippedHash: typeof state.antiCheatListSkippedHash === 'string' ? state.antiCheatListSkippedHash : '',
+    checkedAt: Number(state.antiCheatListCheckedAt) || 0,
+    updatedAt: Number(state.antiCheatListUpdatedAt) || 0
+  };
+}
+
+function loadAntiCheatList() {
+  const prefs = antiCheatPrefs(loadState());
+  antiCheatLoaded = antiCheatListStore.load(app.getPath('userData'));
+  compatibility.setAntiCheatList(prefs.detect ? antiCheatLoaded.names : []);
+  antiCheatReady = true;
+}
+function ensureAntiCheatList() {
+  if (!antiCheatReady) loadAntiCheatList();
+  return antiCheatLoaded;
+}
+
+function antiCheatState() {
+  ensureAntiCheatList();
+  const prefs = antiCheatPrefs(loadState());
+  return {
+    detect: prefs.detect,
+    mode: prefs.mode,
+    source: antiCheatLoaded.source,
+    entries: antiCheatLoaded.names.length,
+    file: path.join(app.getPath('userData'), antiCheatListStore.FILE_NAME),
+    updatedAt: prefs.updatedAt,
+    checkedAt: prefs.checkedAt,
+    ready: antiCheatReady,
+    checking: antiCheatChecking,
+    updateAvailable: Boolean(antiCheatPending)
+  };
+}
+
+// The entry that flagged a game, or null. Cards and the sheet name the game
+// the way the maintainer wrote it in the list.
+function antiCheatFor(game, exePath) {
+  ensureAntiCheatList();
+  const scan = loadState().scans[keyFor(game.dir)];
+  return compatibility.antiCheatMatch(game.dir, exePath || (scan && scan.exe) || null, game.name);
+}
+
+// The maintainer publishes the file in the repository; this fetches it and
+// says what changed. Nothing is written until the person - or the auto mode -
+// says so.
+async function checkAntiCheatList({ manual = false } = {}) {
+  ensureAntiCheatList();
+  const prefs = antiCheatPrefs(loadState());
+  if (!manual) {
+    if (prefs.mode === 'off') return { ok: true, mode: prefs.mode, checked: false };
+    // The file is tiny, but a start must not wait on the network twice.
+    if (prefs.checkedAt && Date.now() - prefs.checkedAt < ANTI_CHEAT_CHECK_INTERVAL_MS) {
+      return { ok: true, mode: prefs.mode, checked: false };
+    }
+  }
+  antiCheatChecking = true;
+  const found = await antiCheatListSource.fetchList();
+  antiCheatChecking = false;
+  const state = loadState();
+  state.antiCheatListCheckedAt = Date.now();
+  saveState(state);
+  if (!found.ok) return { ok: false, mode: prefs.mode, error: found.error };
+  const hash = antiCheatListStore.hash(found.text);
+  if (hash === antiCheatLoaded.hash) return { ok: true, mode: prefs.mode, checked: true, unchanged: true };
+  // One version can be waved away. The next change is offered again.
+  if (hash === prefs.skippedHash) return { ok: true, mode: prefs.mode, checked: true, skipped: true };
+  const change = antiCheatList.diff(antiCheatLoaded.names, found.names);
+  if (prefs.mode === 'auto') {
+    return { ok: true, mode: prefs.mode, checked: true, applied: applyAntiCheatList(found.text), change };
+  }
+  antiCheatPending = { text: found.text, hash, change };
+  return { ok: true, mode: prefs.mode, checked: true, update: true, change, entries: found.names.length };
+}
+
+function applyAntiCheatList(text) {
+  const saved = antiCheatListStore.save(app.getPath('userData'), text);
+  if (!saved.ok) {
+    // %APPDATA% is writable for a normal user, so this is a full disk or a
+    // file locked by something else: say which file could not be written.
+    return { ok: false, message: saved.error && saved.error.message ? saved.error.message : String(saved.error) };
+  }
+  antiCheatLoaded = { names: saved.names, source: 'downloaded', hash: saved.hash, text };
+  const state = loadState();
+  state.antiCheatListUpdatedAt = Date.now();
+  state.antiCheatListSkippedHash = '';
+  saveState(state);
+  compatibility.setAntiCheatList(antiCheatPrefs(state).detect ? saved.names : []);
+  antiCheatPending = null;
+  return { ok: true, file: saved.file, entries: saved.names.length };
+}
+
+function ignoreAntiCheatList() {
+  const state = loadState();
+  state.antiCheatListSkippedHash = antiCheatPending ? antiCheatPending.hash : '';
+  antiCheatPending = null;
+  saveState(state);
+}
+
+ipcMain.handle('anti-cheat-list-state', () => antiCheatState());
+ipcMain.handle('anti-cheat-list-check', (_event, manual) => checkAntiCheatList({ manual: manual === true }));
+ipcMain.handle('anti-cheat-list-apply', () => (antiCheatPending
+  ? applyAntiCheatList(antiCheatPending.text)
+  : { ok: false, message: 'nothing to apply' }));
+ipcMain.handle('anti-cheat-list-ignore', () => { ignoreAntiCheatList(); return { ok: true }; });
+ipcMain.handle('set-anti-cheat-detect', (_event, enabled) => {
+  const state = loadState();
+  state.antiCheatDetect = enabled === true;
+  saveState(state);
+  // The switch is about what is warned about right now, not at the next start.
+  loadAntiCheatList();
+  return state.antiCheatDetect;
+});
+ipcMain.handle('set-anti-cheat-list-mode', (_event, mode) => {
+  const state = loadState();
+  state.antiCheatListMode = ANTI_CHEAT_MODES.includes(mode) ? mode : 'prompt';
+  saveState(state);
+  return state.antiCheatListMode;
 });
 
 // ---------- community compatibility ----------
@@ -1107,6 +1249,9 @@ ipcMain.handle('library', () => {
       name: g.name,
       dir: g.dir,
       poster: posterUrl(g, state),
+      // Which list entry flags this game, so the card can say so before it is
+      // even opened. The warning itself still needs no scan of its own.
+      antiCheat: antiCheatFor(g),
       // Whatever the last scan found, so cards can render before rescanning.
       cached: state.scans[keyFor(g.dir)] && state.scans[keyFor(g.dir)].rules === SCAN_RULES
         ? state.scans[keyFor(g.dir)]
@@ -1782,7 +1927,8 @@ ipcMain.handle('details', async (_event, dir) => {
     via: scan.chosen ? scan.chosen.via : null,
     emulator: scan.emulator,
     installedRoute: scan.install && scan.install.route,
-    antiCheatWarning: compatibility.hasAntiCheat(dir, scan.chosen?.path),
+    antiCheatWarning: compatibility.hasAntiCheat(dir, scan.chosen?.path, gameName(dir)),
+    antiCheatMatch: compatibility.antiCheatMatch(dir, scan.chosen?.path, gameName(dir)),
     crashWarning: Boolean(crashWarning.known(scan.chosen?.path)),
     installedApi: scan.install && scan.install.api,
     installedExe: scan.install && scan.install.exe,
@@ -1794,7 +1940,7 @@ ipcMain.handle('details', async (_event, dir) => {
       bitness: e.bitness, size: e.size, via: e.via,
       emulator: e.emulator,
       installIssue: compatibility.targetIssue(dir, e.path),
-      antiCheatWarning: compatibility.hasAntiCheat(dir, e.path),
+      antiCheatWarning: compatibility.hasAntiCheat(dir, e.path, gameName(dir)),
       crashWarning: Boolean(crashWarning.known(e.path)),
       hasNativeDlss,
       apiOverride: apiPreference(state, dir, e.path),
@@ -1900,8 +2046,11 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
   const changed = old && (old.route !== route || old.game.api !== api || old.game.exe.toLowerCase() !== target.rel.toLowerCase());
   if (changed && (old.game.api === 'vulkan' || api === 'vulkan')) return { ok: false, code: 'errBackendVulkanSwitch' };
   let antiCheatAcknowledged = false;
-  if (compatibility.hasAntiCheat(dir, target.path)) {
-    const answer = await dialog.showMessageBox(win, antiCheatWarning.dialogOptions(loadState().lang, dir, target.path));
+  if (compatibility.hasAntiCheat(dir, target.path, gameName(dir))) {
+    // The name the list knows this game by is what the person is agreeing to,
+    // so it goes in the dialog rather than a generic sentence alone.
+    const listed = compatibility.antiCheatMatch(dir, target.path, gameName(dir));
+    const answer = await dialog.showMessageBox(win, antiCheatWarning.dialogOptions(loadState().lang, dir, target.path, listed && listed.name));
     if (answer.response !== 1) return { ok: false, cancelled: true };
     antiCheatAcknowledged = true;
     send({ code: 'antiCheatRiskAccepted', params: {} });

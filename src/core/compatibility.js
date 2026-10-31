@@ -43,13 +43,30 @@ const KNOWN_KERNEL_AC_EXES = new Set([
 // Where the anti-cheat does live in the folder, or can sit deeper than the scan
 // reaches, the folder name is the stable key.
 const KNOWN_ANTI_CHEAT_DIRS = /(?:^|[\\/])(?:arc[ _-]?raiders|war[ _-]?dogs)(?:[\\/]|$)/i;
-function hasAntiCheat(gameDir, exePath) {
+// The list the maintainer publishes is loaded once and swapped in whole when
+// an update is applied. It is held here so the details page, the install
+// confirmation and the manager's own consent check all agree on what is
+// flagged, instead of threading the list through every call.
+const antiCheatList = require('./anti-cheat-list');
+let listNames = [];
+function setAntiCheatList(names) {
+  listNames = Array.isArray(names) ? names : [];
+}
+function antiCheatMatch(gameDir, exePath, title) {
+  return antiCheatList.match(listNames, {
+    title: title || null,
+    dir: gameDir ? path.basename(gameDir) : null,
+    exe: exePath ? path.basename(exePath) : null
+  });
+}
+function hasAntiCheat(gameDir, exePath, title) {
   const dirs = [gameDir, ...(exePath ? [path.dirname(exePath)] : [])];
   const exeName = exePath ? path.basename(exePath).toLowerCase() : '';
   return RICOCHET_EXES.has(exeName) ||
     KNOWN_KERNEL_AC_EXES.has(exeName) ||
     dirs.some(dir => KNOWN_ANTI_CHEAT_DIRS.test(dir)) ||
-    dirs.some(dir => guards.antiCheatPresent(dir));
+    dirs.some(dir => guards.antiCheatPresent(dir)) ||
+    Boolean(antiCheatMatch(gameDir, exePath, title));
 }
 function targetIssue(gameDir, exePath) {
   // Anti-cheat is a user-acknowledged risk, not a compatibility hard block.
@@ -123,4 +140,4 @@ function assertLoaderCompatible(config, manifest, mentions = pe.versionMentions)
     throw problem('errLoaderConflict', path.relative(gameDir, file));
   }
 }
-module.exports = { targetIssue, hasAntiCheat, oldShaderCompiler, assertSafeTarget, assertAntiCheatConsent, assertLoaderCompatible, managedModRoot };
+module.exports = { targetIssue, hasAntiCheat, antiCheatMatch, setAntiCheatList, oldShaderCompiler, assertSafeTarget, assertAntiCheatConsent, assertLoaderCompatible, managedModRoot };
