@@ -443,7 +443,7 @@ The install will go through. If the neural pass never appears in game, 616.56 is
   },
   zh: {
     antiCheatWarningTitle: '警告：检测到反作弊系统',
-    antiCheatWarning: '该游戏似乎使用了反作弊系统。ReShade、Feeder 或 OptiScaler 可能导致崩溃、无法启动或账号被封。安装是可选的：点击安装并明确接受风险后方可继续。程序不会禁用或绕过反作弊系统。',
+    antiCheatWarning: '该游戏似乎使用了反作弊系统。ReShade、Feeder 或 OptiScaler 等可能导致崩溃、无法启动或账号被封。安装是可选的：点击安装并明确接受风险后方可继续。程序不会禁用或绕过反作弊系统。',
     errAntiCheatConsent: '检测到反作弊系统。请再次点击安装以查看警告并选择是否继续。',
     antiCheatRiskAccepted: '本次安装已确认反作弊风险。',
     setAntiCheat: '反作弊游戏名单',
