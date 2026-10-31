@@ -22,6 +22,9 @@ ModernWarfare
 BlackOpsColdWar
 Vanguard
 
+# Valve VAC（Source 引擎）
+Left 4 Dead 2
+
 # 其他
 Arc Raiders
 War Dogs

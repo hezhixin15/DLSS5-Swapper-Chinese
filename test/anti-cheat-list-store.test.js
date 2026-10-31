@@ -17,7 +17,17 @@ test('a fresh install warns from the snapshot that shipped with it', (t) => {
   assert.equal(loaded.source, 'bundled');
   assert.ok(loaded.names.includes('Escape from Tarkov'), 'the snapshot carries the known titles');
   assert.ok(loaded.names.includes('VALORANT'));
+  assert.ok(loaded.names.includes('Left 4 Dead 2'), 'new titles are added to the shipped snapshot');
   assert.equal(loaded.hash, store.hash(loaded.text));
+});
+
+test('the snapshot flags Left 4 Dead 2 by its folder or its executable', (t) => {
+  const loaded = store.load(scratch(t));
+  const list = require('../src/core/anti-cheat-list');
+  assert.equal(list.match(loaded.names, { title: 'Left 4 Dead 2', dir: 'Left 4 Dead 2', exe: 'left4dead2.exe' }).name,
+    'Left 4 Dead 2');
+  assert.equal(list.match(loaded.names, { title: null, dir: null, exe: 'left4dead2.exe' }).name,
+    'Left 4 Dead 2');
 });
 
 test('the downloaded copy is what the app runs on', (t) => {
