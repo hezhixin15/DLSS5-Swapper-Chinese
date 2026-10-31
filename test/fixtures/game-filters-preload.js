@@ -31,6 +31,18 @@ const windowStateHandlers = [];
 let tutorial = process.env.TUTORIAL_FIXTURE || 'done';
 const tutorialLang = process.env.TUTORIAL_FIXTURE_LANG || 'en';
 const tutorialCalls = [];
+// The anti-cheat list: what the app would have loaded from %APPDATA%, and a
+// handle for tests to steer what a check finds.
+let antiCheatDetect = true;
+let antiCheatMode = 'prompt';
+let antiCheatChecking = false;
+let antiCheatCheckResult = { ok: true, mode: 'prompt', checked: false };
+const antiCheatCalls = [];
+const antiCheatState = () => ({
+  detect: antiCheatDetect, mode: antiCheatMode, source: 'bundled',
+  entries: antiCheatDetect ? 14 : 0, file: 'C:\\Fixture\\anti-cheat-list.txt',
+  updatedAt: 0, checkedAt: 0, ready: true, checking: antiCheatChecking, updateAvailable: false
+});
 const games = [
   ['Euro Truck Simulator', 'DirectX 12', '2.2.16', true],
   ['American Truck Simulator', 'DirectX 11', '310.8.0.0', false],
@@ -52,7 +64,20 @@ contextBridge.exposeInMainWorld('lab', {
   testTutorialCalls: () => tutorialCalls,
   artStatus: async () => ({ available: false }),
   library: async () => { libraryReads++; return games; },
-  settings: async () => ({ groupGamesByStore, folders: [], roots: [], stateFile: 'test', posterDir: 'test', posterCount: 0, autoScanDrives: false }),
+  settings: async () => ({
+    groupGamesByStore, folders: [], roots: [], stateFile: 'test', posterDir: 'test', posterCount: 0,
+    autoScanDrives: false, antiCheat: antiCheatState()
+  }),
+  antiCheatState: async () => antiCheatState(),
+  antiCheatCheck: async (manual) => { antiCheatCalls.push(['check', manual === true]); return antiCheatCheckResult; },
+  antiCheatApply: async () => { antiCheatCalls.push(['apply']); return { ok: true, file: 'C:\\Fixture\\anti-cheat-list.txt', entries: 14 }; },
+  antiCheatIgnore: async () => { antiCheatCalls.push(['ignore']); return { ok: true }; },
+  setAntiCheatDetect: async (enabled) => { antiCheatDetect = Boolean(enabled); return antiCheatDetect; },
+  setAntiCheatListMode: async (mode) => { antiCheatMode = mode; return antiCheatMode; },
+  testAntiCheatResult: (value) => { antiCheatCheckResult = value; },
+  testAntiCheatChecking: (value) => { antiCheatChecking = Boolean(value); },
+  testAntiCheatCalls: () => antiCheatCalls,
+  testAntiCheatReset: () => { antiCheatCalls.length = 0; },
   setGroupGamesByStore: async (enabled) => { groupGamesByStore = enabled; return enabled; },
   communityNoticeSettings: async (on) => {
     if (on !== undefined) noticeSettings = Boolean(on);
