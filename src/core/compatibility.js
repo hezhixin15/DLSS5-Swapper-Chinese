@@ -30,12 +30,24 @@ function managedModRoot(gameDir, exePath) {
 // instead - folder names collide ("Call of Duty Modern Warfare" is the 2019
 // game, "Call of Duty Modern Warfare 2" the 2009 one, which has none).
 const RICOCHET_EXES = new Set(['cod.exe', 'modernwarfare.exe', 'blackopscoldwar.exe', 'vanguard.exe']);
+// Same idea, other vendors: HoYoProtect/mhyprot (HoYoverse games) and Riot
+// Vanguard load their kernel driver from outside the game folder too, so no
+// easyanticheat/battleye folder exists for the scan to find - key on the
+// executable name (global and Chinese client variants both listed).
+const KNOWN_KERNEL_AC_EXES = new Set([
+  'genshinimpact.exe', 'yuanshen.exe', // Genshin Impact
+  'starrail.exe', // Honkai: Star Rail
+  'zenlesszonezero.exe', // Zenless Zone Zero
+  'valorant.exe', 'valorant-win64-shipping.exe', // VALORANT
+]);
 // Where the anti-cheat does live in the folder, or can sit deeper than the scan
 // reaches, the folder name is the stable key.
 const KNOWN_ANTI_CHEAT_DIRS = /(?:^|[\\/])(?:arc[ _-]?raiders|war[ _-]?dogs)(?:[\\/]|$)/i;
 function hasAntiCheat(gameDir, exePath) {
   const dirs = [gameDir, ...(exePath ? [path.dirname(exePath)] : [])];
-  return RICOCHET_EXES.has(exePath ? path.basename(exePath).toLowerCase() : '') ||
+  const exeName = exePath ? path.basename(exePath).toLowerCase() : '';
+  return RICOCHET_EXES.has(exeName) ||
+    KNOWN_KERNEL_AC_EXES.has(exeName) ||
     dirs.some(dir => KNOWN_ANTI_CHEAT_DIRS.test(dir)) ||
     dirs.some(dir => guards.antiCheatPresent(dir));
 }

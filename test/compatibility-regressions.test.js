@@ -125,6 +125,38 @@ test('WARDOGS and modern Call of Duty need consent, the 2009 game does not', asy
   assert.equal(fs.existsSync(core.backupRoot(wardogs)), false);
 });
 
+test('known kernel anti-cheat titles the folder scan cannot see need consent', async t => {
+  const root = temp(t);
+  // HoYoProtect/mhyprot (HoYoverse games) and Riot Vanguard keep their
+  // drivers outside the game folder, so no easyanticheat/battleye folder
+  // exists to find - these titles are keyed on the executable name.
+  const known = [
+    ['Genshin Impact', 'GenshinImpact.exe'],
+    ['Genshin Impact', 'YuanShen.exe'],
+    ['Star Rail', 'StarRail.exe'],
+    ['ZenlessZoneZero', 'ZenlessZoneZero.exe'],
+    ['VALORANT', 'VALORANT.exe'],
+    ['VALORANT', 'VALORANT-Win64-Shipping.exe'],
+  ];
+  for (const [name, exe] of known) {
+    const dir = path.join(root, name);
+    const exePath = writePe(path.join(dir, exe));
+    assert.equal(compatibility.hasAntiCheat(dir, exePath), true, exe);
+    assert.equal(compatibility.targetIssue(dir, exePath), null, exe);
+    assert.throws(() => compatibility.assertAntiCheatConsent(dir, exePath, false), { code: 'errAntiCheatConsent' });
+    assert.doesNotThrow(() => compatibility.assertAntiCheatConsent(dir, exePath, true));
+  }
+  // Consent is per attempt: installing without it must be rejected.
+  const dir = path.join(root, 'Genshin Impact');
+  const exePath = path.join(dir, 'YuanShen.exe');
+  await assert.rejects(manager.install({ gameDir: dir, exePath, route: 'native' }), { code: 'errAntiCheatConsent' });
+  assert.equal(fs.existsSync(core.backupRoot(dir)), false);
+  // Ordinary games that merely share folder words must not be flagged.
+  const plain = path.join(root, 'Plain Games');
+  const plainExe = writePe(path.join(plain, 'Game.exe'));
+  assert.equal(compatibility.hasAntiCheat(plain, plainExe), false);
+});
+
 test('anti-cheat consent does not bypass independent mod-manager or file-conflict protection', async t => {
   const dir = temp(t);
   const exePath = writePe(path.join(dir, 'Stock Game/SkyrimSE.exe'));
