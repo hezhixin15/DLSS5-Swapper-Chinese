@@ -37,6 +37,11 @@ function reject(names, error) { return { ok: false, names: [], error }; }
 // what the app warns about.
 function parse(text) {
   if (typeof text !== 'string') return reject([], 'errListNotText');
+  // A captive portal, an error page or a JSON error must not read as a list
+  // of games. Only whole-document shapes are refused: a name may start with a
+  // bracket, a payload cannot be one name and one closing bracket.
+  const trimmed = text.trim();
+  if (trimmed.startsWith('<') || /^\[[\s\S]*\]$|^\{[\s\S]*\}$/.test(trimmed)) return reject([], 'errListNotText');
   if (Buffer.byteLength(text, 'utf8') > LIMITS.maxBytes) return reject([], 'errListTooBig');
   const lines = text.split(/\r?\n/);
   if (lines.length > LIMITS.maxLines) return reject([], 'errListTooManyLines');

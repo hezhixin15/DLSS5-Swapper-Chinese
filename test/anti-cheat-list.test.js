@@ -27,6 +27,8 @@ test('markdown decoration around a name is stripped, the name is not', () => {
 test('a file that is too big, too long or not text is refused whole', () => {
   assert.equal(list.parse(null).error, 'errListNotText');
   assert.equal(list.parse(42).error, 'errListNotText');
+  assert.equal(list.parse('<!DOCTYPE html><html><body>404</body></html>').error, 'errListNotText');
+  assert.equal(list.parse('{"error":"not a list"}').error, 'errListNotText');
   assert.equal(list.parse('x'.repeat(list.LIMITS.maxBytes + 1)).error, 'errListTooBig');
   assert.equal(list.parse(Array(list.LIMITS.maxLines + 2).join('a\n')).error, 'errListTooManyLines');
   assert.equal(list.parse('a'.repeat(list.LIMITS.maxLine + 1)).error, 'errListLineTooLong');
