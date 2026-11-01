@@ -10,6 +10,8 @@ gitee源码仓库：https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese.git
 
 基于开源项目 [DLSS 5 Swapper](https://github.com/rakanki911/DLSS5-Swapper) 的中文增强版，为 NVIDIA DLSS 5（神经渲染）提供游戏/模拟器的一键安装与管理。
 
+只支持N卡！！！！！
+
 ## 相比原版
 
 - **完整中文汉化**：主界面 + 游戏内叠加层全量翻译
