@@ -162,3 +162,16 @@ test('a dist without an installer produces no manifest at all', async (t) => {
   );
   assert.equal(fs.existsSync(path.join(dist, 'update-manifest.json')), false);
 });
+
+test('an older installer left in dist is not signed under the new version', async (t) => {
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'swapper-dist-'));
+  t.after(() => fs.rmSync(dist, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dist, 'DLSS5-Swapper-Setup-2.0.4.exe'), 'old installer');
+  const { privateKey } = crypto.generateKeyPairSync('ed25519');
+  await assert.rejects(
+    () => writeManifest({ distDir: dist, version: '2.0.5', privateKey }),
+    /do not name version 2\.0\.5[\s\S]*Setup-2\.0\.4\.exe/
+  );
+  assert.equal(fs.existsSync(path.join(dist, 'update-manifest.json')), false,
+    'a stale tree must not leave a manifest behind');
+});

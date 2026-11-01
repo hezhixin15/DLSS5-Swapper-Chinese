@@ -50,6 +50,19 @@ async function writeManifest({ distDir, version, privateKey }) {
   const files = listDist(distDir);
   const installers = files.filter((file) => /\.exe$/i.test(file));
   if (!installers.length) throw new Error(`No .exe in ${distDir}: build the installers first.`);
+  // dist/ keeps old builds. Signing one of those under the new version would
+  // hand every user an older binary with a fresh, valid signature.
+  const stale = installers.filter((file) => {
+    const name = path.basename(file);
+    return !name.includes(`-${version}.`) && !name.includes(`-${version}-`);
+  });
+  if (stale.length) {
+    throw new Error([
+      `These installers do not name version ${version}:`,
+      ...stale.map((file) => `  ${path.basename(file)}`),
+      'Build this version before releasing, or remove the old installers from dist/.'
+    ].join('\n'));
+  }
 
   const assets = [];
   for (const file of installers) {
