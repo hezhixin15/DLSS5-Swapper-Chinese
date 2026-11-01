@@ -1108,7 +1108,9 @@ function showUpdateDialog(answer) {
   pendingUpdate = answer;
   $('updateVersions').textContent = t('updateVersions', answer.current, answer.latest);
   $('updateNotes').textContent = answer.notes || t('updateNoNotes');
-  $('updateNoAsset').classList.toggle('hidden', Boolean(answer.asset));
+  // What makes a channel usable is its two signed files, not an .exe sitting on
+  // the release page: the manifest is what names the installer and its address.
+  $('updateNoAsset').classList.toggle('hidden', Boolean(answer.signed));
   $('updateNow').disabled = false;
   $('updatePick').classList.add('hidden');
   $('updatePick').innerHTML = '';
@@ -1149,6 +1151,7 @@ async function startUpdateDownload(source) {
   $('updatePick').classList.add('hidden');
   $('updateActions').classList.add('hidden');
   $('updateDownload').classList.remove('hidden');
+  downloadHost = null;
   setUpdateProgress(0);
   const result = await window.lab.downloadUpdate(source).catch((e) => ({ ok: false, reason: 'ipc', message: e.message }));
   if (!result || !result.ok) {
@@ -1159,8 +1162,12 @@ async function startUpdateDownload(source) {
     // so only failures come back here.
     if (result && result.reason === 'no-asset') {
       showToast(t('updateNoAssetSource', result.sourceName || (source === 'gitee' ? 'Gitee' : 'GitHub')));
+    } else if (result && result.reason === 'no-manifest') {
+      // Nothing to verify against: the channel is missing its signed files, so
+      // switching channel is the fix, not retrying.
+      showToast(t('updateNoManifest', result.sourceName || (source === 'gitee' ? 'Gitee' : 'GitHub')));
     } else if (result && [
-      'no-manifest', 'bad-signature', 'bad-manifest', 'manifest-version',
+      'bad-signature', 'bad-manifest', 'manifest-version',
       'asset-not-listed', 'size-mismatch', 'sha256-mismatch'
     ].includes(result.reason)) {
       // The download was refused, not merely broken: say so plainly and point
@@ -1171,9 +1178,13 @@ async function startUpdateDownload(source) {
     }
   }
 }
-function setUpdateProgress(percent) {
+let downloadHost = null;
+function setUpdateProgress(percent, host) {
+  if (host) downloadHost = host;
   $('updateProgressBar').style.width = Math.max(0, Math.min(100, Math.round(percent))) + '%';
-  $('updateProgressText').textContent = t('updateDownloading', Math.round(percent));
+  // The signed manifest may point somewhere other than the channel that was
+  // clicked, so the address the bytes actually come from stays on screen.
+  $('updateProgressText').textContent = t('updateDownloading', Math.round(percent), downloadHost);
 }
 
 // One lookup, two moods. Auto-detection is silent: only a newer release (that
@@ -1216,7 +1227,7 @@ $('updateSkip').onclick = async () => {
 $('updateLater').onclick = closeUpdateDialog;
 $('updateOverlay').onclick = (e) => { if (e.target === $('updateOverlay')) closeUpdateDialog(); };
 window.lab.onUpdateProgress?.((p) => {
-  if (typeof p?.percent === 'number' && !$('updateDownload').classList.contains('hidden')) setUpdateProgress(p.percent);
+  if (typeof p?.percent === 'number' && !$('updateDownload').classList.contains('hidden')) setUpdateProgress(p.percent, p.host);
 });
 
 function jobLog(line) {

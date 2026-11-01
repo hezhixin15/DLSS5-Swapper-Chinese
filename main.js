@@ -1444,11 +1444,16 @@ async function fetchRelease(source, url, current) {
 function describeRelease(source, release, current) {
   const tag = typeof release?.tag_name === 'string' ? release.tag_name : '';
   const latest = tag.replace(/^v/, '');
+  const manifest = releaseFile(release, UPDATE_MANIFEST);
+  const signature = releaseFile(release, UPDATE_SIGNATURE);
   return {
     current, latest: latest || null, newer: newerRelease(current, latest), tag: tag || null,
     asset: updateAsset(release), source,
-    manifest: releaseFile(release, UPDATE_MANIFEST),
-    signature: releaseFile(release, UPDATE_SIGNATURE),
+    manifest, signature,
+    // A channel that carries the two small signed files can update the app even
+    // when it cannot host the installer itself, so this - not the presence of an
+    // .exe - is what makes a source usable.
+    signed: Boolean(manifest && signature),
     notes: typeof release?.body === 'string' && release.body.trim() ? release.body.trim() : null
   };
 }
@@ -1463,7 +1468,7 @@ async function lookupSource(source) {
     answer = describeRelease(source, await fetchRelease(source, updateSourceInfo(source).latest, current), current);
   } catch {
     // Offline, rate-limited or blocked: say nothing rather than worry anyone.
-    answer = { current, latest: null, newer: false, tag: null, asset: null, notes: null, source };
+    answer = { current, latest: null, newer: false, tag: null, asset: null, signed: false, notes: null, source };
   }
   updateAnswers.set(source, answer);
   return answer;
@@ -1488,10 +1493,15 @@ ipcMain.handle('set-update-source', (_event, source) => {
 
 // The chosen source must hand over the version the dialog offered. Asking the
 // tag endpoint first means a mirror that lags behind cannot quietly install an
-// older build under the new version's name.
+// older build under the new version's name. What comes back is only the release
+// page's own file list; the bytes to download are named by the signed manifest.
 async function findDownloadAsset(source, answer) {
-  if (answer.source === source && answer.asset) {
-    return { asset: answer.asset, manifest: answer.manifest || null, signature: answer.signature || null };
+  if (answer.source === source && answer.signed) {
+    return {
+      asset: answer.asset || null,
+      manifest: answer.manifest || null,
+      signature: answer.signature || null
+    };
   }
   const info = updateSourceInfo(source);
   const tags = [...new Set([answer.tag, `v${answer.latest}`, answer.latest].filter(Boolean))];
@@ -1509,7 +1519,10 @@ async function findDownloadAsset(source, answer) {
     if (String(release?.tag_name || '').replace(/^v/, '') === answer.latest) return releaseFiles(release);
   } catch { /* this source is not answering either */ }
   if (!answered) return { error: `${info.name} could not be reached` };
-  return { asset: null };
+  // The source answered, it simply has no release at that version yet. A mirror
+  // that lags behind must read as "not published here", not as a broken
+  // signature, so the caller gets its own word for it.
+  return { stale: true };
 }
 
 // Manifests are a few hundred bytes; nothing legitimate comes close to the
@@ -1558,7 +1571,7 @@ ipcMain.handle('download-update', async (event, requested) => {
   try {
     const found = await findDownloadAsset(source, answer);
     if (found.error) return { ok: false, reason: 'download', message: found.error };
-    if (!found.asset) return { ok: false, reason: 'no-asset', source, sourceName };
+    if (found.stale) return { ok: false, reason: 'no-asset', source, sourceName };
     // The signature is checked before the installer is even requested: a
     // release that cannot prove what it ships never gets to hand anything over.
     if (!found.manifest || !found.signature) return { ok: false, reason: 'no-manifest', source, sourceName };
@@ -1568,10 +1581,19 @@ ipcMain.handle('download-update', async (event, requested) => {
       integrity.verifyManifest(manifestBytes, signature, UPDATE_PUBLIC_KEY),
       answer.latest
     );
-    const entry = integrity.findAsset(manifest, found.asset.name);
-    const response = await fetch(found.asset.url, { signal: AbortSignal.timeout(10 * 60 * 1000) });
+    // The signed list, not the release page, decides which file to fetch and
+    // from where - that is what lets a channel carry only these two small files.
+    const entry = integrity.pickInstaller(manifest);
+    if (!entry) return { ok: false, reason: 'no-asset', source, sourceName };
+    // An installer sitting on the release page that the manifest never listed is
+    // a swapped upload, not a stale mirror, so it is refused by name.
+    if (found.asset) integrity.findAsset(manifest, found.asset.name);
+    const response = await fetch(entry.url, { signal: AbortSignal.timeout(10 * 60 * 1000) });
     if (!response.ok || !response.body) throw Error(String(response.status));
     const total = Number(response.headers.get('content-length') || 0);
+    // Tell the dialog where the bytes are really coming from: the channel that
+    // was clicked supplied the manifest, this host supplies the installer.
+    sender.send('update-progress', { percent: 0, host: integrity.hostOf(entry.url) });
     let received = 0;
     // The hash is fed from the same bytes that reach the disk, so the check
     // covers exactly the file that would be launched.

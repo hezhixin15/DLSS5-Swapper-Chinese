@@ -137,6 +137,9 @@ test('the release manifest lists the installers and verifies against its key', a
   ]);
   assert.equal(result.manifest.assets[1].size, 'installer'.length);
   assert.equal(result.manifest.assets[1].sha256, crypto.createHash('sha256').update('installer').digest('hex'));
+  assert.equal(result.manifest.assets[1].url,
+    'https://github.com/hezhixin15/DLSS5-Swapper-Chinese/releases/download/v2.0.5/DLSS5-Swapper-Setup-2.0.5.exe',
+    'the signed manifest names where the bytes live');
 
   const parsed = verifyManifest(result.bytes, fs.readFileSync(result.signaturePath, 'utf8'),
     publicKey.export({ type: 'spki', format: 'pem' }));
@@ -149,6 +152,70 @@ test('the release manifest lists the installers and verifies against its key', a
     'DLSS5-Swapper-Setup-2.0.5.exe'
   ]);
   assert.match(sums[1], new RegExp(`^${crypto.createHash('sha256').update('archive').digest('hex')}  `));
+});
+
+function makeDist(t, entries) {
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'swapper-dist-'));
+  t.after(() => fs.rmSync(dist, { recursive: true, force: true }));
+  for (const [name, body] of entries) fs.writeFileSync(path.join(dist, name), body);
+  return dist;
+}
+
+// A channel that cannot host a 250 MB installer can still carry the two small
+// signed files, as long as the manifest points at somewhere that can.
+test('each channel writes its own manifest naming its own addresses', async (t) => {
+  const dist = makeDist(t, [['DLSS5-Swapper-Setup-2.0.5.exe', 'installer']]);
+  const { privateKey } = crypto.generateKeyPairSync('ed25519');
+  const github = await writeManifest({ distDir: dist, version: '2.0.5', privateKey });
+  const gitee = await writeManifest({ distDir: dist, version: '2.0.5', privateKey, channel: 'gitee' });
+
+  assert.equal(github.manifest.assets[0].url,
+    'https://github.com/hezhixin15/DLSS5-Swapper-Chinese/releases/download/v2.0.5/DLSS5-Swapper-Setup-2.0.5.exe');
+  assert.equal(gitee.manifest.assets[0].url,
+    'https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese/releases/download/v2.0.5/DLSS5-Swapper-Setup-2.0.5.exe');
+  assert.equal(path.relative(dist, github.manifestPath), path.join('github', 'update-manifest.json'));
+  assert.equal(path.relative(dist, gitee.manifestPath), path.join('gitee', 'update-manifest.json'));
+  assert.ok(fs.existsSync(github.signaturePath) && fs.existsSync(gitee.signaturePath));
+  assert.equal(github.manifest.assets[0].sha256, gitee.manifest.assets[0].sha256,
+    'both channels describe the same bytes');
+  assert.notEqual(github.bytes.toString(), gitee.bytes.toString(), 'only the address differs');
+  // The checksum file is about the build, not the channel, so it stays put.
+  assert.equal(path.basename(github.sumsPath), 'SHA256SUMS');
+  assert.equal(path.dirname(github.sumsPath), dist);
+});
+
+// The allow list is a build-time guard, not a runtime one: adding a mirror must
+// never require a new app release.
+test('an address outside the allow list is refused until it is named', async (t) => {
+  const dist = makeDist(t, [['DLSS5-Swapper-Setup-2.0.5.exe', 'installer']]);
+  const { privateKey } = crypto.generateKeyPairSync('ed25519');
+  await assert.rejects(
+    () => writeManifest({ distDir: dist, version: '2.0.5', privateKey, downloadBase: 'https://pan.example.net/swapper' }),
+    /allow list|allowed host/i
+  );
+  const opened = await writeManifest({
+    distDir: dist, version: '2.0.5', privateKey,
+    downloadBase: 'https://pan.example.net/swapper', allowHosts: ['pan.example.net']
+  });
+  assert.equal(opened.manifest.assets[0].url, 'https://pan.example.net/swapper/DLSS5-Swapper-Setup-2.0.5.exe');
+});
+
+// A link with a token in it expires. Signing one means the update dies the day
+// the token does, and Gitee hands out exactly those links behind its stable
+// attachment URLs, so the stable form is the only acceptable one.
+test('an expiring link is never baked into a signature', async (t) => {
+  const dist = makeDist(t, [['DLSS5-Swapper-Setup-2.0.5.exe', 'installer']]);
+  const { privateKey } = crypto.generateKeyPairSync('ed25519');
+  for (const base of [
+    'https://pan.example.net/dl?token=abc123',
+    'https://foruda.gitee.com/attach_file/1792114514722290776',
+    'http://pan.example.net/dl'
+  ]) {
+    await assert.rejects(
+      () => writeManifest({ distDir: dist, version: '2.0.5', privateKey, downloadBase: base, allowHosts: ['pan.example.net', 'foruda.gitee.com'] }),
+      /token|query|https|expir/i, `${base} must be refused`
+    );
+  }
 });
 
 test('a dist without an installer produces no manifest at all', async (t) => {

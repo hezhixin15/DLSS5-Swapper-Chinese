@@ -11,6 +11,7 @@ const fs = require('fs');
 const MANIFEST_MAX_BYTES = 64 * 1024;
 const SIGNATURE_MAX_BYTES = 4 * 1024;
 const SHA256 = /^[0-9a-f]{64}$/i;
+const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
 class IntegrityError extends Error {
   constructor(reason, message) {
@@ -23,6 +24,38 @@ class IntegrityError extends Error {
 const fail = (reason, message) => {
   throw new IntegrityError(reason, message);
 };
+
+// The manifest says where the bytes live, so the release page no longer has to
+// host them: a channel can carry nothing but this file and its signature. The
+// cost is that the signed text now steers the app to a host, so the address is
+// held to https, and to nothing that resolves inside the person's own machine.
+// Host reputation is deliberately not checked here - a pinned list would force
+// a new app release for every mirror, and it protects nothing once the key is
+// compromised. scripts/release.js is where the allow list belongs.
+function downloadUrl(value, name) {
+  const label = `The download address for ${name}`;
+  if (typeof value !== 'string' || !value.trim()) {
+    fail('bad-manifest', `${label} is missing.`);
+  }
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    fail('bad-manifest', `${label} is not an absolute URL: ${value}.`);
+  }
+  if (url.protocol !== 'https:') {
+    fail('bad-manifest', `${label} must be https, got ${url.protocol}.`);
+  }
+  if (url.username || url.password) {
+    fail('bad-manifest', `${label} must not carry credentials.`);
+  }
+  const host = url.hostname.toLowerCase();
+  if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')
+    || host.endsWith('.internal') || IPV4.test(host) || host.includes(':')) {
+    fail('bad-manifest', `${label} points at a local address: ${host || value}.`);
+  }
+  return url.href;
+}
 
 function parseManifest(bytes) {
   let manifest;
@@ -62,7 +95,7 @@ function parseManifest(bytes) {
     if (typeof asset.sha256 !== 'string' || !SHA256.test(asset.sha256)) {
       fail('bad-manifest', `Invalid sha256 for ${name}.`);
     }
-    return { name, size: asset.size, sha256: asset.sha256.toLowerCase() };
+    return { name, url: downloadUrl(asset.url, name), size: asset.size, sha256: asset.sha256.toLowerCase() };
   });
   return {
     schema: 1,
@@ -70,6 +103,12 @@ function parseManifest(bytes) {
     issuedAt: typeof manifest.issuedAt === 'string' ? manifest.issuedAt : null,
     assets
   };
+}
+
+// The updater wants to tell the person which host the bytes actually come
+// from. The address has already been through downloadUrl above.
+function hostOf(url) {
+  return new URL(url).hostname;
 }
 
 // The signature is over the manifest bytes exactly as published, not over a
@@ -105,6 +144,15 @@ function findAsset(manifest, name) {
   return asset;
 }
 
+// One-click update runs the installer rather than the portable build when a
+// release carries both - the same preference the release page used to express
+// through its asset list, now read from the signed text instead.
+function pickInstaller(manifest) {
+  const exes = (manifest && Array.isArray(manifest.assets) ? manifest.assets : [])
+    .filter((asset) => /\.exe$/i.test(asset.name));
+  return exes.find((asset) => /setup/i.test(asset.name)) || exes[0] || null;
+}
+
 async function sha256File(filePath) {
   const hash = crypto.createHash('sha256');
   await new Promise((resolve, reject) => {
@@ -137,6 +185,8 @@ module.exports = {
   verifyManifest,
   assertVersion,
   findAsset,
+  pickInstaller,
+  hostOf,
   sha256File,
   verifyFile
 };

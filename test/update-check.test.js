@@ -56,15 +56,19 @@ const download = (text) => ({
 });
 
 // A release the way a normal, honest publish looks: installers, a manifest that
-// lists them by name and hash, and the detached signature made offline.
+// lists them by name, address and hash, and the detached signature made offline.
+// `base` is where the release page hosts its files; `host` is the address the
+// signed manifest points at, which for a mirror channel is somewhere else.
 const sha256 = (text) => crypto.createHash('sha256').update(text).digest('hex');
 const signText = (text) => crypto.sign(null, Buffer.from(text), privateKey).toString('base64');
-function served(tag, { files, listed = files, overrides = {}, base = 'https://github.com/example' } = {}) {
+function served(tag, { files, listed = files, overrides = {}, base = 'https://github.com/example', host = base } = {}) {
   const value = {
     schema: 1,
     version: tag.replace(/^v/, ''),
     issuedAt: '2026-11-01T00:00:00.000Z',
-    assets: listed.map(({ name, bytes }) => ({ name, size: Buffer.byteLength(bytes), sha256: sha256(bytes) })),
+    assets: listed.map(({ name, bytes }) => ({
+      name, url: `${host}/${name}`, size: Buffer.byteLength(bytes), sha256: sha256(bytes)
+    })),
     ...overrides
   };
   const text = JSON.stringify(value, null, 2);
@@ -290,6 +294,32 @@ test('an installer whose manifest and hash verify is launched', async (t) => {
     'the verified installer is still there for the running installer to use');
 });
 
+// Signing the address is the whole point: a channel that cannot host the
+// installer at all can still offer an update, and whoever owns the release page
+// cannot move the download by editing their own file list.
+test('the signed manifest, not the release page, decides where the bytes come from', async (t) => {
+  const setup = installer('2.2.2');
+  const bytes = 'installer-bytes';
+  const mirror = 'https://pan.example.net/releases';
+  const source = served('2.2.2', {
+    files: [{ name: setup, bytes }],
+    base: 'https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese/releases/download/2.2.2',
+    host: mirror
+  });
+  const pageUrl = urlOf(source, setup);
+  // The copy the release page offers has the right name and the wrong bytes.
+  source.urls.set(pageUrl, 'trojan-bytes');
+  source.urls.set(`${mirror}/${setup}`, bytes);
+  const asked = [];
+  const loaded = load(t, { version: '2.2.1', fetchImpl: servedFetch(source, asked) });
+  await loaded.handlers.get('update-check')();
+  const result = await loaded.handlers.get('download-update')({ sender: { send() {} } }, 'gitee');
+  assert.equal(result.ok, true, 'the honest copy at the signed address is what ran');
+  assert.ok(asked.includes(`${mirror}/${setup}`), 'the signed address was fetched');
+  assert.ok(!asked.includes(pageUrl), 'the release page copy was never requested');
+  assert.equal(loaded.opened.length, 1);
+});
+
 test('a download that breaks off leaves no executable behind', async (t) => {
   const setup = installer('2.2.2');
   const source = served('v2.2.2', { files: [{ name: setup, bytes: 'installer-bytes' }] });
@@ -313,21 +343,26 @@ test('a download that breaks off leaves no executable behind', async (t) => {
   assert.deepEqual(fs.readdirSync(root), [], 'the partial file is removed');
 });
 
-// The main process can refuse for seven reasons, and each one means "do not
+// The main process refuses for distinct reasons, and each one means "do not
 // retry this source". A missing branch would fall through to the generic
 // "update failed" toast, which reads like a network problem.
-test('every integrity refusal has its own, manual-download message in the UI', () => {
-  const reasons = ['no-manifest', 'bad-signature', 'bad-manifest', 'manifest-version',
-    'asset-not-listed', 'size-mismatch', 'sha256-mismatch'];
+test('every refusal reason has its own message in the UI', () => {
   const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
   const branch = renderer.slice(renderer.indexOf('async function startUpdateDownload'));
-  for (const reason of reasons) {
+  for (const reason of ['bad-signature', 'bad-manifest', 'manifest-version',
+    'asset-not-listed', 'size-mismatch', 'sha256-mismatch']) {
     assert.match(branch, new RegExp(`'${reason}'`), `${reason} must reach the integrity toast`);
   }
   assert.match(branch, /updateIntegrityFailed/);
+  // A channel that carries no signed manifest has a configuration gap, not a
+  // broken file: "checksum failed" would send people hunting the wrong thing.
+  assert.match(branch, /'no-manifest'[\s\S]{0,160}updateNoManifest/,
+    'a missing manifest gets its own message');
   const i18n = fs.readFileSync(path.join(__dirname, '../src/renderer/i18n.js'), 'utf8');
   assert.equal((i18n.match(/\n\s+updateIntegrityFailed:/g) || []).length, 2,
     'English and Chinese both define updateIntegrityFailed');
+  assert.equal((i18n.match(/\n\s+updateNoManifest:/g) || []).length, 2,
+    'English and Chinese both define updateNoManifest');
 });
 
 test('an update the signed manifest does not vouch for never reaches the installer', async (t) => {

@@ -151,17 +151,22 @@ app.whenReady().then(async () => {
   assert.deepEqual(await run(`window.lab.testAntiCheatCalls().map(c => c[0])`), ['check', 'ignore', 'check', 'apply']);
 
   // The release dialog asks which host to download from, and links to both
-  // release pages for a manual download.
+  // release pages for a manual download. What makes a channel usable is its
+  // signed manifest, so the fixture answer carries one.
   await run(`window.lab.testUpdateAnswer({
     current: '2.0.5', latest: '9.9.9', newer: true, tag: 'v9.9.9', source: 'github',
     asset: { name: 'DLSS5-Swapper-Setup-9.9.9.exe', url: 'https://example.test/Setup.exe' },
-    notes: 'Fixture notes'
+    manifest: { name: 'update-manifest.json', url: 'https://example.test/update-manifest.json' },
+    signature: { name: 'update-manifest.json.sig', url: 'https://example.test/update-manifest.json.sig' },
+    signed: true, notes: 'Fixture notes'
   })`);
   await run(`checkForUpdates({ manual: true })`);
   await run(`new Promise(resolve => {
     const check = () => $('updateOverlay').classList.contains('hidden') ? setTimeout(check, 10) : resolve();
     check();
   })`);
+  assert.equal(await run(`$('updateNoAsset').classList.contains('hidden')`), true,
+    'a channel with a signed manifest is not warned about');
   assert.equal(await run(`$('updateGitee').textContent`), await run(`t('updateOpenGitee')`));
   await run(`$('updateGitee').click()`);
   assert.deepEqual(await run(`window.lab.testProjectLinks()`), ['zhGiteeReleases']);
@@ -174,6 +179,27 @@ app.whenReady().then(async () => {
   await run(`$('updatePick').querySelector('[data-update-source="gitee"]').click()`);
   await settle();
   assert.deepEqual(await run(`window.lab.testUpdateDownloads()`), ['gitee']);
+  // The bytes may come from somewhere other than the channel that was clicked,
+  // and the person watching the bar is entitled to see which host that is.
+  await run(`window.lab.testUpdateProgress({ percent: 42, host: 'pan.example.net' })`);
+  assert.match(await run(`$('updateProgressText').textContent`), /pan\.example\.net/);
+  assert.match(await run(`$('updateProgressBar').style.width`), /^42%/);
+  await shot('update-download-host.png');
+  await run(`closeUpdateDialog()`);
+
+  // A channel that publishes no manifest cannot be verified, and the dialog has
+  // to say that instead of offering a download it would refuse.
+  await run(`window.lab.testUpdateAnswer({
+    current: '2.0.5', latest: '9.9.9', newer: true, tag: 'v9.9.9', source: 'gitee',
+    asset: null, signed: false, notes: 'Fixture notes'
+  })`);
+  await run(`checkForUpdates({ manual: true })`);
+  await run(`new Promise(resolve => {
+    const check = () => $('updateOverlay').classList.contains('hidden') ? setTimeout(check, 10) : resolve();
+    check();
+  })`);
+  assert.equal(await run(`$('updateNoAsset').classList.contains('hidden')`), false,
+    'a channel without a signed manifest says so');
   await run(`closeUpdateDialog()`);
 
   // Installing while the list is still being checked asks before skipping:
