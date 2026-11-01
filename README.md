@@ -1,9 +1,5 @@
 # DLSS 5 Swapper 中文增强版
 
-<p align="center">
-  <strong>简体中文</strong> &nbsp;|&nbsp; <a href="README.zh-TW.md"><strong>繁體中文</strong></a>
-</p>
-
 使用中文增强版遇到不懂的或者是使用问题可以去kook服务器上发信息：https://kook.vip/6pSyqG
 ## 这是什么
 
