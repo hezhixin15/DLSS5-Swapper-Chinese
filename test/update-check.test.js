@@ -313,6 +313,23 @@ test('a download that breaks off leaves no executable behind', async (t) => {
   assert.deepEqual(fs.readdirSync(root), [], 'the partial file is removed');
 });
 
+// The main process can refuse for seven reasons, and each one means "do not
+// retry this source". A missing branch would fall through to the generic
+// "update failed" toast, which reads like a network problem.
+test('every integrity refusal has its own, manual-download message in the UI', () => {
+  const reasons = ['no-manifest', 'bad-signature', 'bad-manifest', 'manifest-version',
+    'asset-not-listed', 'size-mismatch', 'sha256-mismatch'];
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
+  const branch = renderer.slice(renderer.indexOf('async function startUpdateDownload'));
+  for (const reason of reasons) {
+    assert.match(branch, new RegExp(`'${reason}'`), `${reason} must reach the integrity toast`);
+  }
+  assert.match(branch, /updateIntegrityFailed/);
+  const i18n = fs.readFileSync(path.join(__dirname, '../src/renderer/i18n.js'), 'utf8');
+  assert.equal((i18n.match(/\n\s+updateIntegrityFailed:/g) || []).length, 2,
+    'English and Chinese both define updateIntegrityFailed');
+});
+
 test('an update the signed manifest does not vouch for never reaches the installer', async (t) => {
   const setup = installer('2.2.2');
   const bytes = 'installer-bytes';
