@@ -39,7 +39,6 @@ contextBridge.exposeInMainWorld('lab', {
   setTutorial: (outcome) => ipcRenderer.invoke('set-tutorial', outcome),
   setAutoScanDrives: (enabled) => ipcRenderer.invoke('set-auto-scan-drives', enabled),
   setAutoUpdateCheck: (enabled) => ipcRenderer.invoke('set-auto-update-check', enabled),
-  setUpdateSource: (source) => ipcRenderer.invoke('set-update-source', source),
   antiCheatState: () => ipcRenderer.invoke('anti-cheat-list-state'),
   antiCheatCheck: (manual) => ipcRenderer.invoke('anti-cheat-list-check', manual),
   antiCheatApply: () => ipcRenderer.invoke('anti-cheat-list-apply'),

@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const { t, setLang, getLang, dirOf, LANGS } = window.i18n;
-const state = { games: [], recents: [], history: [], newDlss: null, log: [], theme: 'light', skin: 'one', rail: 'off', lang: 'en', logo: {}, groupGamesByStore: true, updateSource: 'github' };
+const state = { games: [], recents: [], history: [], newDlss: null, log: [], theme: 'light', skin: 'one', rail: 'off', lang: 'en', logo: {}, groupGamesByStore: true };
 const filters = { query: '', api: 'all', dlss: 'all', addon: 'all' };
 const gameFilters = window.gameFilters;
 
@@ -488,12 +488,6 @@ async function renderSettings() {
         aria-checked="${info.autoUpdateCheck ? 'true' : 'false'}" aria-label="${t('setUpdateCheck')}" aria-describedby="setUpdateCheckHint">
         <span class="knob"></span>
       </button></div>
-    <div class="set-row"><div><div class="k">${t('setUpdateSource')}</div>
-      <div class="v">${t('setUpdateSourceHint')}</div></div>
-      <select class="setting-select" id="setUpdateSource" aria-label="${t('setUpdateSource')}">
-        <option value="github"${info.updateSource !== 'gitee' ? ' selected' : ''}>${t('sourceGithub')}</option>
-        <option value="gitee"${info.updateSource === 'gitee' ? ' selected' : ''}>${t('sourceGitee')}</option>
-      </select></div>
     <div class="set-row"><div><div class="k">${t('getLatest')}</div>
       <div class="v">${t('manualCheckHint')}</div></div>
       <button class="ghost sm" id="setCheckUpdate">${t('getLatest')}</button></div>
@@ -654,13 +648,6 @@ async function renderSettings() {
     } finally {
       toggle.disabled = false;
     }
-  };
-  $('setUpdateSource').onchange = async () => {
-    const select = $('setUpdateSource');
-    select.disabled = true;
-    try { state.updateSource = await window.lab.setUpdateSource(select.value); }
-    catch (error) { log(error.message); }
-    finally { select.disabled = false; }
   };
   $('setCheckUpdate').onclick = () => checkForUpdates({ manual: true });
   $('setAntiCheat').onclick = async () => {
@@ -1112,8 +1099,6 @@ function showUpdateDialog(answer) {
   // the release page: the manifest is what names the installer and its address.
   $('updateNoAsset').classList.toggle('hidden', Boolean(answer.signed));
   $('updateNow').disabled = false;
-  $('updatePick').classList.add('hidden');
-  $('updatePick').innerHTML = '';
   $('updateDownload').classList.add('hidden');
   $('updateActions').classList.remove('hidden');
   $('updateOverlay').classList.remove('hidden');
@@ -1122,38 +1107,12 @@ function closeUpdateDialog() {
   $('updateOverlay').classList.add('hidden');
   pendingUpdate = null;
 }
-// The download source is chosen here, not in Settings: Settings holds the
-// source the check prefers, while this step lets someone take the other one
-// for a single download.
-function showUpdateSourcePick() {
-  const sources = state.updateSource === 'gitee' ? ['gitee', 'github'] : ['github', 'gitee'];
-  $('updatePick').innerHTML = `
-    <div class="k">${t('updateChooseSource')}</div>
-    <div class="update-actions">
-      ${sources.map((source) => `<button class="glass-btn sm update-source" type="button" data-update-source="${source}">${esc(t(source === 'gitee' ? 'sourceGitee' : 'sourceGithub'))}</button>`).join('')}
-      <button class="ghost sm" id="updatePickCancel" type="button">${t('cancel')}</button>
-    </div>`;
-  for (const button of $('updatePick').querySelectorAll('[data-update-source]')) {
-    button.onclick = () => startUpdateDownload(button.dataset.updateSource);
-  }
-  $('updatePickCancel').onclick = () => {
-    $('updatePick').classList.add('hidden');
-    $('updateActions').classList.remove('hidden');
-    $('updateNow').disabled = false;
-    $('updateNow').focus({ preventScroll: true });
-  };
-  $('updateDownload').classList.add('hidden');
-  $('updateActions').classList.add('hidden');
-  $('updatePick').classList.remove('hidden');
-  $('updatePick').querySelector('[data-update-source]')?.focus({ preventScroll: true });
-}
-async function startUpdateDownload(source) {
-  $('updatePick').classList.add('hidden');
+async function startUpdateDownload() {
   $('updateActions').classList.add('hidden');
   $('updateDownload').classList.remove('hidden');
   downloadHost = null;
   setUpdateProgress(0);
-  const result = await window.lab.downloadUpdate(source).catch((e) => ({ ok: false, reason: 'ipc', message: e.message }));
+  const result = await window.lab.downloadUpdate().catch((e) => ({ ok: false, reason: 'ipc', message: e.message }));
   if (!result || !result.ok) {
     $('updateDownload').classList.add('hidden');
     $('updateActions').classList.remove('hidden');
@@ -1161,11 +1120,11 @@ async function startUpdateDownload(source) {
     // Success means the installer is launching and this process is quitting,
     // so only failures come back here.
     if (result && result.reason === 'no-asset') {
-      showToast(t('updateNoAssetSource', result.sourceName || (source === 'gitee' ? 'Gitee' : 'GitHub')));
+      showToast(t('updateNoAssetSource', result.sourceName || 'GitHub'));
     } else if (result && result.reason === 'no-manifest') {
-      // Nothing to verify against: the channel is missing its signed files, so
-      // switching channel is the fix, not retrying.
-      showToast(t('updateNoManifest', result.sourceName || (source === 'gitee' ? 'Gitee' : 'GitHub')));
+      // Nothing to verify against: the release is missing its signed files, so
+      // retrying is not the fix.
+      showToast(t('updateNoManifest', result.sourceName || 'GitHub'));
     } else if (result && [
       'bad-signature', 'bad-manifest', 'manifest-version',
       'asset-not-listed', 'size-mismatch', 'sha256-mismatch'
@@ -1211,13 +1170,12 @@ async function checkForUpdates({ manual = false } = {}) {
 
 // The dialog is shared by the automatic check and the manual one in Settings.
 // "Later" and the overlay click just close it; "Skip" remembers the version so
-// it stops asking; the GitHub and Gitee buttons leave without downloading.
+// it stops asking; the GitHub button leaves without downloading.
 $('updateNow').onclick = () => {
   $('updateNow').disabled = true;
-  showUpdateSourcePick();
+  startUpdateDownload();
 };
 $('updateGithub').onclick = () => { window.lab.openProject('zhReleases').catch(() => {}); };
-$('updateGitee').onclick = () => { window.lab.openProject('zhGiteeReleases').catch(() => {}); };
 $('updateSkip').onclick = async () => {
   if (pendingUpdate && pendingUpdate.latest) {
     try { await window.lab.skipUpdate(pendingUpdate.latest); } catch {}
@@ -1931,11 +1889,9 @@ document.addEventListener('drop', (e) => e.preventDefault());
   try {
     const prefs = await window.lab.settings();
     state.autoUpdateCheck = prefs.autoUpdateCheck !== false;
-    state.updateSource = prefs.updateSource === 'gitee' ? 'gitee' : 'github';
     state.skippedUpdates = prefs.skippedUpdates || [];
   } catch {
     state.autoUpdateCheck = true;
-    state.updateSource = 'github';
     state.skippedUpdates = [];
   }
   if (state.autoUpdateCheck) checkForUpdates();

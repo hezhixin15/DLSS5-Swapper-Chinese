@@ -45,8 +45,7 @@ const antiCheatState = () => ({
 });
 // The update dialog: no newer version by default, so the automatic check at
 // start stays quiet. The update suite supplies a newer answer when it wants one.
-let updateSource = 'github';
-let updateAnswer = { current: 'test', latest: 'test', newer: false, tag: null, asset: null, signed: false, notes: null, source: 'github' };
+let updateAnswer = { current: 'test', latest: 'test', newer: false, tag: null, asset: null, signed: false, notes: null };
 let progressListener = null;
 const updateDownloads = [];
 const games = [
@@ -72,12 +71,11 @@ contextBridge.exposeInMainWorld('lab', {
   library: async () => { libraryReads++; return games; },
   settings: async () => ({
     groupGamesByStore, folders: [], roots: [], stateFile: 'test', posterDir: 'test', posterCount: 0,
-    autoScanDrives: false, autoUpdateCheck: true, updateSource, skippedUpdates: [], antiCheat: antiCheatState()
+    autoScanDrives: false, autoUpdateCheck: true, skippedUpdates: [], antiCheat: antiCheatState()
   }),
   checkUpdate: async () => updateAnswer,
-  downloadUpdate: async (source) => { updateDownloads.push(source); return { ok: true }; },
+  downloadUpdate: async () => { updateDownloads.push('github'); return { ok: true }; },
   skipUpdate: async () => true,
-  setUpdateSource: async (value) => { updateSource = value === 'gitee' ? 'gitee' : 'github'; return updateSource; },
   onUpdateProgress: (fn) => { progressListener = fn; },
   testUpdateProgress: (value) => { if (progressListener) progressListener(value); },
   testUpdateAnswer: (value) => { updateAnswer = value; },

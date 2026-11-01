@@ -185,35 +185,18 @@ test('a release without an installer still reports the new version', async (t) =
   assert.equal(answer.asset, null);
 });
 
-test('the settings choose which source is asked first, and the answer names it', async (t) => {
+test('the check asks GitHub, and there is no source switch to configure', async (t) => {
   const urls = [];
   const { handlers } = load(t, {
     fetchImpl: async (url) => {
       urls.push(url);
-      return url.includes('gitee.com') ? release('2.0.6') : release('v2.0.6');
+      return release('v2.0.6');
     }
   });
-  assert.equal(handlers.get('set-update-source')(null, 'gitee'), 'gitee');
+  assert.equal(handlers.has('set-update-source'), false, 'the download source is no longer a setting');
   const answer = await handlers.get('update-check')();
-  assert.equal(answer.source, 'gitee');
-  assert.equal(answer.tag, '2.0.6');
-  assert.match(urls[0], /^https:\/\/gitee\.com\/api\/v5\/repos\/hezhixin15\/DLSS5-Swapper-Chinese\/releases\/latest$/);
-  assert.equal(handlers.get('set-update-source')(null, 'nonsense'), 'github', 'an unknown source falls back to GitHub');
-});
-
-test('a blocked source is skipped for the other one', async (t) => {
-  const asked = [];
-  const { handlers } = load(t, {
-    fetchImpl: async (url) => {
-      asked.push(url);
-      if (url.includes('api.github.com')) throw new Error('getaddrinfo ENOTFOUND');
-      return release('2.2.2');
-    }
-  });
-  const answer = await handlers.get('update-check')();
-  assert.equal(answer.source, 'gitee', 'the mirror answers when GitHub cannot');
-  assert.equal(answer.newer, true);
-  assert.equal(asked.length, 2);
+  assert.equal(answer.tag, 'v2.0.6');
+  assert.match(urls[0], /^https:\/\/api\.github\.com\/repos\/hezhixin15\/DLSS5-Swapper-Chinese\/releases\/latest$/);
 });
 
 test('the one-click download uses the installer rather than the portable build', async (t) => {
@@ -227,50 +210,24 @@ test('the one-click download uses the installer rather than the portable build',
   assert.equal(answer.asset.name, 'DLSS5-Swapper-Setup-2.2.2.exe');
 });
 
-test('a download can take the other source at the same version', async (t) => {
-  const asked = [];
-  const files = [{ name: 'DLSS5-Swapper-Setup-2.2.2.exe', bytes: 'installer-from-gitee' }];
-  const github = served('v2.2.2', { files, base: 'https://github.com/example' });
-  // The mirror publishes its own copy and its own signed manifest, at the
-  // same version: nothing here is borrowed from GitHub.
-  const gitee = served('2.2.2', { files, base: 'https://gitee.com/hezhixin15/attach_files/1' });
-  const giteeAsset = `https://gitee.com/hezhixin15/attach_files/1/${files[0].name}`;
-  const { handlers, opened } = load(t, {
-    version: '2.2.1',
-    fetchImpl: async (url) => {
-      asked.push(url);
-      if (github.urls.has(url)) return download(github.urls.get(url));
-      if (gitee.urls.has(url)) return download(gitee.urls.get(url));
-      if (url.includes('gitee.com/api/v5/repos/hezhixin15/DLSS5-Swapper-Chinese/releases/tags/')) return notFound;
-      if (url.includes('gitee.com/api/v5/repos/hezhixin15/DLSS5-Swapper-Chinese/releases/latest')) return gitee.release;
-      if (url.includes('api.github.com/repos/hezhixin15/DLSS5-Swapper-Chinese/releases/latest')) return github.release;
-      throw new Error(`unexpected URL ${url}`);
-    }
-  });
-  await handlers.get('update-check')();
-  const result = await handlers.get('download-update')({ sender: { send() {} } }, 'gitee');
-  assert.equal(result.ok, true);
-  assert.ok(asked.includes(giteeAsset), 'the Gitee asset was downloaded, not the GitHub one');
-  assert.equal(opened.length, 1);
-  assert.match(path.basename(opened[0]), /^DLSS5-Swapper-2\.2\.2-\d+\.exe$/);
-});
-
-test('a source without an installer for that version says so instead of downloading an older build', async (t) => {
+test('a release page that lags behind says so instead of downloading an older build', async (t) => {
+  let calls = 0;
   const { handlers } = load(t, {
     version: '2.2.1',
     fetchImpl: async (url) => {
-      if (url.includes('api.github.com')) return release('v2.2.2');
+      calls++;
+      // The check saw 2.2.2 without signed files; the tag lookups then ask the
+      // latest endpoint, which still carries the previous version.
+      if (calls === 1) return release('v2.2.2');
       if (url.includes('/releases/tags/')) return notFound;
-      // The mirror still carries the previous version; it must not be used.
-      return release('2.2.0', { assets: [{ name: 'DLSS5-Swapper-Setup-2.2.0.exe', browser_download_url: 'https://gitee.com/example/Setup.exe' }] });
+      return release('v2.2.0', { assets: [{ name: 'DLSS5-Swapper-Setup-2.2.0.exe', browser_download_url: 'https://github.com/example/Setup.exe' }] });
     }
   });
   await handlers.get('update-check')();
-  const result = await handlers.get('download-update')({ sender: { send() {} } }, 'gitee');
+  const result = await handlers.get('download-update')({ sender: { send() {} } });
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'no-asset');
-  assert.equal(result.source, 'gitee');
-  assert.equal(result.sourceName, 'Gitee');
+  assert.equal(result.sourceName, 'GitHub');
 });
 
 // Everything below runs the real manifest verification in main.js. A refusal
@@ -278,10 +235,10 @@ test('a source without an installer for that version says so instead of download
 const installer = (tag) => `DLSS5-Swapper-Setup-${tag}.exe`;
 const urlOf = (source, name) => [...source.urls.keys()].find((url) => url.endsWith(name));
 
-async function downloadWith(t, source, requested = 'github', version = '2.2.1') {
+async function downloadWith(t, source, version = '2.2.1') {
   const loaded = load(t, { version, fetchImpl: servedFetch(source) });
   await loaded.handlers.get('update-check')();
-  const result = await loaded.handlers.get('download-update')({ sender: { send() {} } }, requested);
+  const result = await loaded.handlers.get('download-update')({ sender: { send() {} } });
   return { ...loaded, result };
 }
 
@@ -294,7 +251,7 @@ test('an installer whose manifest and hash verify is launched', async (t) => {
     'the verified installer is still there for the running installer to use');
 });
 
-// Signing the address is the whole point: a channel that cannot host the
+// Signing the address is the whole point: a release that cannot host the
 // installer at all can still offer an update, and whoever owns the release page
 // cannot move the download by editing their own file list.
 test('the signed manifest, not the release page, decides where the bytes come from', async (t) => {
@@ -303,7 +260,7 @@ test('the signed manifest, not the release page, decides where the bytes come fr
   const mirror = 'https://pan.example.net/releases';
   const source = served('2.2.2', {
     files: [{ name: setup, bytes }],
-    base: 'https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese/releases/download/2.2.2',
+    base: 'https://github.com/example/releases/download/2.2.2',
     host: mirror
   });
   const pageUrl = urlOf(source, setup);
@@ -313,7 +270,7 @@ test('the signed manifest, not the release page, decides where the bytes come fr
   const asked = [];
   const loaded = load(t, { version: '2.2.1', fetchImpl: servedFetch(source, asked) });
   await loaded.handlers.get('update-check')();
-  const result = await loaded.handlers.get('download-update')({ sender: { send() {} } }, 'gitee');
+  const result = await loaded.handlers.get('download-update')({ sender: { send() {} } });
   assert.equal(result.ok, true, 'the honest copy at the signed address is what ran');
   assert.ok(asked.includes(`${mirror}/${setup}`), 'the signed address was fetched');
   assert.ok(!asked.includes(pageUrl), 'the release page copy was never requested');
@@ -336,7 +293,7 @@ test('a download that breaks off leaves no executable behind', async (t) => {
     }
   });
   await handlers.get('update-check')();
-  const result = await handlers.get('download-update')({ sender: { send() {} } }, 'github');
+  const result = await handlers.get('download-update')({ sender: { send() {} } });
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'download');
   assert.deepEqual(opened, []);

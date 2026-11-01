@@ -623,7 +623,6 @@ ipcMain.handle('settings', () => {
     groupGamesByStore: state.groupGamesByStore !== false,
     closeToTray: state.closeToTray !== false,
     autoUpdateCheck: state.autoUpdateCheck !== false,
-    updateSource: updateSourceOf(state),
     skippedUpdates: [...(state.skippedUpdates || [])],
     safeGraphics: state.safeGraphics === true,
     skin: state.skin === 'two' ? 'two' : 'one',
@@ -1385,30 +1384,21 @@ function newerRelease(current, latest) {
   return false;
 }
 // The Chinese enhanced edition checks its own repository, so the version found
-// there is one this build can actually update to. GitHub is the primary host
-// and Gitee the mirror for people who cannot reach it; the choice is kept in
-// the settings and used for both the check and the download.
+// there is one this build can actually update to. GitHub is the one host the
+// updater talks to; the signed manifest says where the installer itself lives,
+// so a mirror can still carry the bytes without being a second channel here.
 const UPDATE_REPO = 'hezhixin15/DLSS5-Swapper-Chinese';
 const UPDATE_TIMEOUT_MS = 10000;
-const UPDATE_SOURCES = ['github', 'gitee'];
 const UPDATE_MANIFEST = 'update-manifest.json';
 const UPDATE_SIGNATURE = 'update-manifest.json.sig';
 const integrity = require('./src/core/update-integrity.js');
 const { UPDATE_PUBLIC_KEY } = require('./src/core/update-public-key.js');
-const updateSourceOf = (state) => (UPDATE_SOURCES.includes(state.updateSource) ? state.updateSource : 'github');
-const updateSourceInfo = (source) => (source === 'gitee'
-  ? {
-      name: 'Gitee',
-      latest: `https://gitee.com/api/v5/repos/${UPDATE_REPO}/releases/latest`,
-      tag: (tag) => `https://gitee.com/api/v5/repos/${UPDATE_REPO}/releases/tags/${encodeURIComponent(tag)}`,
-      accept: 'application/json'
-    }
-  : {
-      name: 'GitHub',
-      latest: `https://api.github.com/repos/${UPDATE_REPO}/releases/latest`,
-      tag: (tag) => `https://api.github.com/repos/${UPDATE_REPO}/releases/tags/${encodeURIComponent(tag)}`,
-      accept: 'application/vnd.github+json'
-    });
+const UPDATE_SOURCE = Object.freeze({
+  name: 'GitHub',
+  latest: `https://api.github.com/repos/${UPDATE_REPO}/releases/latest`,
+  tag: (tag) => `https://api.github.com/repos/${UPDATE_REPO}/releases/tags/${encodeURIComponent(tag)}`,
+  accept: 'application/vnd.github+json'
+});
 // The one-click update should run the installer, not the portable build, when
 // a release carries both. A release without any .exe still tells the person
 // what is new and where to get it.
@@ -1432,96 +1422,75 @@ function releaseFiles(release) {
     signature: releaseFile(release, UPDATE_SIGNATURE)
   };
 }
-async function fetchRelease(source, url, current) {
-  const info = updateSourceInfo(source);
+async function fetchRelease(url, current) {
   const response = await fetch(url, {
-    headers: { 'User-Agent': `DLSS5-Swapper/${current}`, Accept: info.accept },
+    headers: { 'User-Agent': `DLSS5-Swapper/${current}`, Accept: UPDATE_SOURCE.accept },
     signal: AbortSignal.timeout(UPDATE_TIMEOUT_MS)
   });
   if (!response.ok) throw Error(String(response.status));
   return response.json();
 }
-function describeRelease(source, release, current) {
+function describeRelease(release, current) {
   const tag = typeof release?.tag_name === 'string' ? release.tag_name : '';
   const latest = tag.replace(/^v/, '');
   const manifest = releaseFile(release, UPDATE_MANIFEST);
   const signature = releaseFile(release, UPDATE_SIGNATURE);
   return {
     current, latest: latest || null, newer: newerRelease(current, latest), tag: tag || null,
-    asset: updateAsset(release), source,
+    asset: updateAsset(release),
     manifest, signature,
-    // A channel that carries the two small signed files can update the app even
-    // when it cannot host the installer itself, so this - not the presence of an
-    // .exe - is what makes a source usable.
+    // A release that carries the two small signed files can update the app even
+    // when it does not host the installer itself, so this - not the presence of
+    // an .exe - is what makes an update possible.
     signed: Boolean(manifest && signature),
     notes: typeof release?.body === 'string' && release.body.trim() ? release.body.trim() : null
   };
 }
-// One answer per source per launch: switching the preferred source in the
-// settings must not repeat a lookup that already succeeded.
-const updateAnswers = new Map();
-async function lookupSource(source) {
-  if (updateAnswers.has(source)) return updateAnswers.get(source);
+// One answer per launch: the dialog and the download both read it.
+let updateAnswer = null;
+async function lookupUpdate() {
+  if (updateAnswer) return updateAnswer;
   const current = app.getVersion();
-  let answer;
   try {
-    answer = describeRelease(source, await fetchRelease(source, updateSourceInfo(source).latest, current), current);
+    updateAnswer = describeRelease(await fetchRelease(UPDATE_SOURCE.latest, current), current);
   } catch {
     // Offline, rate-limited or blocked: say nothing rather than worry anyone.
-    answer = { current, latest: null, newer: false, tag: null, asset: null, signed: false, notes: null, source };
+    updateAnswer = { current, latest: null, newer: false, tag: null, asset: null, signed: false, notes: null };
   }
-  updateAnswers.set(source, answer);
-  return answer;
-}
-async function lookupUpdate(preferred = updateSourceOf(loadState())) {
-  const first = UPDATE_SOURCES.includes(preferred) ? preferred : 'github';
-  let answer = null;
-  for (const source of [first, ...UPDATE_SOURCES.filter((s) => s !== first)]) {
-    answer = await lookupSource(source);
-    // A source that could not answer is not the last word: ask the other one.
-    if (answer.latest) return answer;
-  }
-  return answer;
+  return updateAnswer;
 }
 ipcMain.handle('update-check', () => lookupUpdate());
-ipcMain.handle('set-update-source', (_event, source) => {
-  const state = loadState();
-  state.updateSource = UPDATE_SOURCES.includes(source) ? source : 'github';
-  saveState(state);
-  return state.updateSource;
-});
 
-// The chosen source must hand over the version the dialog offered. Asking the
-// tag endpoint first means a mirror that lags behind cannot quietly install an
-// older build under the new version's name. What comes back is only the release
-// page's own file list; the bytes to download are named by the signed manifest.
-async function findDownloadAsset(source, answer) {
-  if (answer.source === source && answer.signed) {
+// The release must hand over the version the dialog offered. Asking the tag
+// endpoint first means a release published after the check cannot quietly hand
+// over an older build under the new version's name. What comes back is only the
+// release page's own file list; the bytes to download are named by the signed
+// manifest.
+async function findDownloadAsset(answer) {
+  if (answer.signed) {
     return {
       asset: answer.asset || null,
       manifest: answer.manifest || null,
       signature: answer.signature || null
     };
   }
-  const info = updateSourceInfo(source);
   const tags = [...new Set([answer.tag, `v${answer.latest}`, answer.latest].filter(Boolean))];
   let answered = false;
   for (const tag of tags) {
     try {
-      const release = await fetchRelease(source, info.tag(tag), answer.current);
+      const release = await fetchRelease(UPDATE_SOURCE.tag(tag), answer.current);
       answered = true;
       if (String(release?.tag_name || '').replace(/^v/, '') === answer.latest) return releaseFiles(release);
     } catch { /* try the next spelling, then the latest release */ }
   }
   try {
-    const release = await fetchRelease(source, info.latest, answer.current);
+    const release = await fetchRelease(UPDATE_SOURCE.latest, answer.current);
     answered = true;
     if (String(release?.tag_name || '').replace(/^v/, '') === answer.latest) return releaseFiles(release);
-  } catch { /* this source is not answering either */ }
-  if (!answered) return { error: `${info.name} could not be reached` };
-  // The source answered, it simply has no release at that version yet. A mirror
-  // that lags behind must read as "not published here", not as a broken
-  // signature, so the caller gets its own word for it.
+  } catch { /* the release page is not answering either */ }
+  if (!answered) return { error: `${UPDATE_SOURCE.name} could not be reached` };
+  // The release page answered, it simply has no release at that version yet.
+  // That must read as "not published here", not as a broken signature.
   return { stale: true };
 }
 
@@ -1558,23 +1527,22 @@ async function discardDownload(stream) {
 
 // One download at a time; a second click while one runs is a no-op.
 let updateDownloading = false;
-ipcMain.handle('download-update', async (event, requested) => {
+ipcMain.handle('download-update', async (event) => {
   if (updateDownloading) return { ok: false, reason: 'busy' };
   const answer = await lookupUpdate();
   if (!answer.latest) return { ok: false, reason: 'no-latest' };
-  const source = UPDATE_SOURCES.includes(requested) ? requested : (answer.source || 'github');
   updateDownloading = true;
   const sender = event.sender;
-  const sourceName = updateSourceInfo(source).name;
+  const sourceName = UPDATE_SOURCE.name;
   const file = path.join(app.getPath('temp'), `DLSS5-Swapper-${answer.latest}-${Date.now()}.exe`);
   let out = null;
   try {
-    const found = await findDownloadAsset(source, answer);
+    const found = await findDownloadAsset(answer);
     if (found.error) return { ok: false, reason: 'download', message: found.error };
-    if (found.stale) return { ok: false, reason: 'no-asset', source, sourceName };
+    if (found.stale) return { ok: false, reason: 'no-asset', sourceName };
     // The signature is checked before the installer is even requested: a
     // release that cannot prove what it ships never gets to hand anything over.
-    if (!found.manifest || !found.signature) return { ok: false, reason: 'no-manifest', source, sourceName };
+    if (!found.manifest || !found.signature) return { ok: false, reason: 'no-manifest', sourceName };
     const manifestBytes = await readUpdateFile(found.manifest.url, integrity.MANIFEST_MAX_BYTES, 'no-manifest', 'The update manifest');
     const signature = (await readUpdateFile(found.signature.url, integrity.SIGNATURE_MAX_BYTES, 'bad-signature', 'The update signature')).toString('utf8');
     const manifest = integrity.assertVersion(
@@ -1584,7 +1552,7 @@ ipcMain.handle('download-update', async (event, requested) => {
     // The signed list, not the release page, decides which file to fetch and
     // from where - that is what lets a channel carry only these two small files.
     const entry = integrity.pickInstaller(manifest);
-    if (!entry) return { ok: false, reason: 'no-asset', source, sourceName };
+    if (!entry) return { ok: false, reason: 'no-asset', sourceName };
     // An installer sitting on the release page that the manifest never listed is
     // a swapped upload, not a stale mirror, so it is refused by name.
     if (found.asset) integrity.findAsset(manifest, found.asset.name);
@@ -1627,7 +1595,7 @@ ipcMain.handle('download-update', async (event, requested) => {
     await discardDownload(out);
     try { fs.rmSync(file, { force: true, maxRetries: 3, retryDelay: 50 }); } catch { /* nothing was fully written */ }
     if (error instanceof integrity.IntegrityError) {
-      return { ok: false, reason: error.reason, source, sourceName, message: error.message };
+      return { ok: false, reason: error.reason, sourceName, message: error.message };
     }
     return { ok: false, reason: 'download', message: error && error.message ? error.message : String(error) };
   } finally {
