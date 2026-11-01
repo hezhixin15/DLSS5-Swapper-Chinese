@@ -5,15 +5,22 @@
 // never replace what the app already knows.
 const { LIMITS, parse } = require('./core/anti-cheat-list');
 
-const SOURCES = [
-  // The file is edited in this app's own repository, so the raw copy is the
-  // canonical one...
-  'https://raw.githubusercontent.com/hezhixin15/DLSS5-Swapper-Chinese/main/anti-cheat-list.txt',
-  // ...and jsDelivr serves the same file to anyone raw.githubusercontent is
-  // slow or unreachable for.
-  'https://cdn.jsdelivr.net/gh/hezhixin15/DLSS5-Swapper-Chinese@main/anti-cheat-list.txt'
-  // A Gitee mirror joins this list once its repository URL is known.
-];
+const SOURCES_BY_CHANNEL = Object.freeze({
+  github: [
+    // The file is edited in this app's own repository, so the raw copy is the
+    // canonical one...
+    'https://raw.githubusercontent.com/hezhixin15/DLSS5-Swapper-Chinese/main/anti-cheat-list.txt',
+    // ...and jsDelivr serves the same file to anyone raw.githubusercontent is
+    // slow or unreachable for.
+    'https://cdn.jsdelivr.net/gh/hezhixin15/DLSS5-Swapper-Chinese@main/anti-cheat-list.txt'
+  ],
+  // The mirror for people who cannot reach GitHub reliably.
+  gitee: [
+    'https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese/raw/main/anti-cheat-list.txt'
+  ]
+});
+const SOURCES = SOURCES_BY_CHANNEL.github;
+const sourcesFor = (channel) => SOURCES_BY_CHANNEL[channel] || SOURCES;
 const TIMEOUT_MS = 10_000;
 
 async function fetchList({ sources = SOURCES, fetchImpl = global.fetch, timeoutMs = TIMEOUT_MS, signal } = {}) {
@@ -38,4 +45,4 @@ async function fetchList({ sources = SOURCES, fetchImpl = global.fetch, timeoutM
   return { ok: false, error: failures.join('; ') };
 }
 
-module.exports = { SOURCES, TIMEOUT_MS, fetchList };
+module.exports = { SOURCES, SOURCES_BY_CHANNEL, sourcesFor, TIMEOUT_MS, fetchList };

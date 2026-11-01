@@ -16,28 +16,35 @@ function load(t, { version = '2.2.1', fetchImpl, abortSignal } = {}) {
   const realRequire = createRequire(main);
   const handlers = new Map();
   const calls = { count: 0 };
+  const opened = [];
   const stubs = {
     electron: {
-      app: { setAppUserModelId() {}, whenReady: () => ({ then() {} }), on() {}, getPath: () => root, getVersion: () => version },
+      app: { setAppUserModelId() {}, whenReady: () => ({ then() {} }), on() {}, quit() {}, getPath: () => root, getVersion: () => version },
       BrowserWindow: { fromWebContents: () => null },
       Menu: { buildFromTemplate: () => ({ popup() {} }) },
       ipcMain: { handle: (name, fn) => handlers.set(name, fn) },
       dialog: { showMessageBox: async () => ({ response: 1 }) },
-      clipboard: { writeText() {} }
+      clipboard: { writeText() {} },
+      shell: { openPath: async (file) => { opened.push(file); return ''; } }
     },
     './src/core/scan.js': { scanGame: async () => ({ chosen: null, exeCandidates: [] }), scanSource: () => ({ ok: false }) }
   };
   const context = vm.createContext({
     require: name => stubs[name] || realRequire(name),
-    __dirname: path.dirname(main), process, Buffer, console, setTimeout, clearTimeout,
+    __dirname: path.dirname(main), process, Buffer, console, setTimeout, clearTimeout, setImmediate,
     AbortSignal: abortSignal || AbortSignal,
     fetch: async (...args) => { calls.count++; return fetchImpl(...args); }
   });
   vm.runInContext(fs.readFileSync(main, 'utf8'), context, { filename: main });
-  return { handlers, calls };
+  return { handlers, calls, opened };
 }
 
-const release = (tag) => ({ ok: true, json: async () => ({ tag_name: tag }) });
+const release = (tag, extra = {}) => ({ ok: true, json: async () => ({ tag_name: tag, ...extra }) });
+const notFound = { ok: false, status: 404, json: async () => ({}) };
+const download = (text) => ({
+  ok: true, headers: { get: () => String(text.length) },
+  body: (async function* () { yield Buffer.from(text); })()
+});
 
 test('a newer release is reported, an older or equal one is not', async (t) => {
   for (const [tag, newer] of [['v2.2.2', true], ['v2.3.0', true], ['v3.0.0', true],
@@ -131,4 +138,90 @@ test('a release without an installer still reports the new version', async (t) =
   const answer = await handlers.get('update-check')();
   assert.equal(answer.newer, true);
   assert.equal(answer.asset, null);
+});
+
+test('the settings choose which source is asked first, and the answer names it', async (t) => {
+  const urls = [];
+  const { handlers } = load(t, {
+    fetchImpl: async (url) => {
+      urls.push(url);
+      return url.includes('gitee.com') ? release('2.0.6') : release('v2.0.6');
+    }
+  });
+  assert.equal(handlers.get('set-update-source')(null, 'gitee'), 'gitee');
+  const answer = await handlers.get('update-check')();
+  assert.equal(answer.source, 'gitee');
+  assert.equal(answer.tag, '2.0.6');
+  assert.match(urls[0], /^https:\/\/gitee\.com\/api\/v5\/repos\/hezhixin15\/DLSS5-Swapper-Chinese\/releases\/latest$/);
+  assert.equal(handlers.get('set-update-source')(null, 'nonsense'), 'github', 'an unknown source falls back to GitHub');
+});
+
+test('a blocked source is skipped for the other one', async (t) => {
+  const asked = [];
+  const { handlers } = load(t, {
+    fetchImpl: async (url) => {
+      asked.push(url);
+      if (url.includes('api.github.com')) throw new Error('getaddrinfo ENOTFOUND');
+      return release('2.2.2');
+    }
+  });
+  const answer = await handlers.get('update-check')();
+  assert.equal(answer.source, 'gitee', 'the mirror answers when GitHub cannot');
+  assert.equal(answer.newer, true);
+  assert.equal(asked.length, 2);
+});
+
+test('the one-click download uses the installer rather than the portable build', async (t) => {
+  const { handlers } = load(t, {
+    fetchImpl: async () => release('v2.2.2', { assets: [
+      { name: 'DLSS5-Swapper-2.2.2-portable.exe', browser_download_url: 'https://github.com/example/portable.exe' },
+      { name: 'DLSS5-Swapper-Setup-2.2.2.exe', browser_download_url: 'https://github.com/example/Setup.exe' }
+    ] })
+  });
+  const answer = await handlers.get('update-check')();
+  assert.equal(answer.asset.name, 'DLSS5-Swapper-Setup-2.2.2.exe');
+});
+
+test('a download can take the other source at the same version', async (t) => {
+  const asked = [];
+  const giteeAsset = 'https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese/attach_files/1/download/Setup.exe';
+  const { handlers, opened } = load(t, {
+    version: '2.2.1',
+    fetchImpl: async (url) => {
+      asked.push(url);
+      if (url.includes('api.github.com/repos/hezhixin15/DLSS5-Swapper-Chinese/releases/latest')) {
+        return release('v2.2.2', { assets: [{ name: 'DLSS5-Swapper-Setup-2.2.2.exe', browser_download_url: 'https://github.com/example/Setup.exe' }] });
+      }
+      if (url.includes('gitee.com/api/v5/repos/hezhixin15/DLSS5-Swapper-Chinese/releases/tags/')) return notFound;
+      if (url.includes('gitee.com/api/v5/repos/hezhixin15/DLSS5-Swapper-Chinese/releases/latest')) {
+        return release('2.2.2', { assets: [{ name: 'DLSS5-Swapper-Setup-2.2.2.exe', browser_download_url: giteeAsset }] });
+      }
+      if (url === giteeAsset) return download('installer');
+      throw new Error(`unexpected URL ${url}`);
+    }
+  });
+  await handlers.get('update-check')();
+  const result = await handlers.get('download-update')({ sender: { send() {} } }, 'gitee');
+  assert.equal(result.ok, true);
+  assert.ok(asked.includes(giteeAsset), 'the Gitee asset was downloaded, not the GitHub one');
+  assert.equal(opened.length, 1);
+  assert.match(path.basename(opened[0]), /^DLSS5-Swapper-2\.2\.2-\d+\.exe$/);
+});
+
+test('a source without an installer for that version says so instead of downloading an older build', async (t) => {
+  const { handlers } = load(t, {
+    version: '2.2.1',
+    fetchImpl: async (url) => {
+      if (url.includes('api.github.com')) return release('v2.2.2');
+      if (url.includes('/releases/tags/')) return notFound;
+      // The mirror still carries the previous version; it must not be used.
+      return release('2.2.0', { assets: [{ name: 'DLSS5-Swapper-Setup-2.2.0.exe', browser_download_url: 'https://gitee.com/example/Setup.exe' }] });
+    }
+  });
+  await handlers.get('update-check')();
+  const result = await handlers.get('download-update')({ sender: { send() {} } }, 'gitee');
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'no-asset');
+  assert.equal(result.source, 'gitee');
+  assert.equal(result.sourceName, 'Gitee');
 });

@@ -2779,6 +2779,11 @@ body { cursor: default; }
 .update-download .bar { margin-top: 0; }
 .update-download p { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .update-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.update-pick .k { font-size: 12px; color: var(--muted); margin-top: 16px; }
+.update-pick .update-actions { margin-top: 10px; }
+/* The Gitee label carries the "when GitHub is slow" hint, so it needs to wrap
+   instead of stretching the dialog. */
+.update-source { white-space: normal; text-align: start; max-width: 100%; }
 #toast {
   position: fixed; top: 54px; left: 16px; z-index: 1200;
   max-width: 280px; padding: 10px 14px; border-radius: 10px;

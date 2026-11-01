@@ -35,14 +35,20 @@ const tutorialCalls = [];
 // handle for tests to steer what a check finds.
 let antiCheatDetect = true;
 let antiCheatMode = 'prompt';
+let antiCheatChannel = 'github';
 let antiCheatChecking = false;
 let antiCheatCheckResult = { ok: true, mode: 'prompt', checked: false };
 const antiCheatCalls = [];
 const antiCheatState = () => ({
-  detect: antiCheatDetect, mode: antiCheatMode, source: 'bundled',
+  detect: antiCheatDetect, mode: antiCheatMode, channel: antiCheatChannel, source: 'bundled',
   entries: antiCheatDetect ? 14 : 0, file: 'C:\\Fixture\\anti-cheat-list.txt',
   updatedAt: 0, checkedAt: 0, ready: true, checking: antiCheatChecking, updateAvailable: false
 });
+// The update dialog: no newer version by default, so the automatic check at
+// start stays quiet. The update suite supplies a newer answer when it wants one.
+let updateSource = 'github';
+let updateAnswer = { current: 'test', latest: 'test', newer: false, tag: null, asset: null, notes: null, source: 'github' };
+const updateDownloads = [];
 const games = [
   ['Euro Truck Simulator', 'DirectX 12', '2.2.16', true],
   ['American Truck Simulator', 'DirectX 11', '310.8.0.0', false],
@@ -66,14 +72,22 @@ contextBridge.exposeInMainWorld('lab', {
   library: async () => { libraryReads++; return games; },
   settings: async () => ({
     groupGamesByStore, folders: [], roots: [], stateFile: 'test', posterDir: 'test', posterCount: 0,
-    autoScanDrives: false, antiCheat: antiCheatState()
+    autoScanDrives: false, autoUpdateCheck: true, updateSource, skippedUpdates: [], antiCheat: antiCheatState()
   }),
+  checkUpdate: async () => updateAnswer,
+  downloadUpdate: async (source) => { updateDownloads.push(source); return { ok: true }; },
+  skipUpdate: async () => true,
+  setUpdateSource: async (value) => { updateSource = value === 'gitee' ? 'gitee' : 'github'; return updateSource; },
+  onUpdateProgress: () => {},
+  testUpdateAnswer: (value) => { updateAnswer = value; },
+  testUpdateDownloads: () => updateDownloads,
   antiCheatState: async () => antiCheatState(),
   antiCheatCheck: async (manual) => { antiCheatCalls.push(['check', manual === true]); return antiCheatCheckResult; },
   antiCheatApply: async () => { antiCheatCalls.push(['apply']); return { ok: true, file: 'C:\\Fixture\\anti-cheat-list.txt', entries: 14 }; },
   antiCheatIgnore: async () => { antiCheatCalls.push(['ignore']); return { ok: true }; },
   setAntiCheatDetect: async (enabled) => { antiCheatDetect = Boolean(enabled); return antiCheatDetect; },
   setAntiCheatListMode: async (mode) => { antiCheatMode = mode; return antiCheatMode; },
+  setAntiCheatListChannel: async (channel) => { antiCheatChannel = channel === 'gitee' ? 'gitee' : 'github'; return antiCheatChannel; },
   testAntiCheatResult: (value) => { antiCheatCheckResult = value; },
   testAntiCheatChecking: (value) => { antiCheatChecking = Boolean(value); },
   testAntiCheatCalls: () => antiCheatCalls,

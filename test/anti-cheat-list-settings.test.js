@@ -15,8 +15,9 @@ function launch(t, { fetchImpl } = {}) {
   t.after(() => fs.rmSync(profile, { recursive: true, force: true }));
   const main = path.resolve(__dirname, '../main.js');
   const realRequire = createRequire(main);
+  const source = realRequire('./src/anti-cheat-list-source');
   const handlers = new Map();
-  const calls = { count: 0 };
+  const calls = { count: 0, options: null };
   const stubs = {
     electron: {
       app: { setAppUserModelId() {}, whenReady: () => ({ then() {} }), on() {}, getPath: () => profile, getVersion: () => '2.0.5' },
@@ -31,8 +32,10 @@ function launch(t, { fetchImpl } = {}) {
       scanSource: () => ({ ok: false })
     },
     './src/anti-cheat-list-source': {
+      ...source,
       fetchList: async (...args) => {
         calls.count++;
+        calls.options = args[0];
         return fetchImpl ? fetchImpl(...args) : { ok: false, error: 'offline' };
       }
     }
@@ -119,6 +122,19 @@ test('auto applies without asking', async (t) => {
   const result = await call('anti-cheat-list-check');
   assert.equal(result.applied.ok, true);
   assert.equal(fs.readFileSync(listFile(profile), 'utf8'), 'VALORANT\n');
+});
+
+test('the list channel decides which sources are fetched, and is remembered', async (t) => {
+  const { calls, call } = launch(t, { fetchImpl: answer('Test Game Alpha\n') });
+  assert.equal(call('settings').antiCheat.channel, 'github', 'GitHub is the channel until it is changed');
+  await call('anti-cheat-list-check', true);
+  assert.ok(calls.options.sources.some((url) => url.includes('raw.githubusercontent.com')));
+  assert.ok(calls.options.sources.every((url) => !url.includes('gitee.com')));
+  assert.equal(call('set-anti-cheat-list-channel', 'gitee'), 'gitee');
+  assert.equal(call('settings').antiCheat.channel, 'gitee');
+  await call('anti-cheat-list-check', true);
+  assert.deepEqual(calls.options.sources, ['https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese/raw/main/anti-cheat-list.txt']);
+  assert.equal(call('set-anti-cheat-list-channel', 'nonsense'), 'github', 'an unknown channel falls back to GitHub');
 });
 
 test('the automatic check is throttled to one per interval', async (t) => {

@@ -99,6 +99,12 @@ app.whenReady().then(async () => {
   assert.equal(await run(`$('setAntiCheatMode').value`), 'prompt');
   assert.equal(await run(`$('setAntiCheatMode').options.length`), 3);
   assert.equal(await run(`$('setAntiCheatCheck').textContent`), await run(`t('setAntiCheatCheck')`));
+  assert.equal(await run(`$('setAntiCheatChannel').value`), 'github');
+  assert.equal(await run(`$('setAntiCheatChannel').options.length`), 2);
+  assert.match(await run(`$('setAntiCheatChannel').options[1].textContent`), /Gitee/);
+  assert.equal(await run(`$('setUpdateSource').value`), 'github');
+  assert.equal(await run(`$('setUpdateSource').options.length`), 2);
+  assert.match(await run(`$('setUpdateSource').options[1].textContent`), /Gitee/);
   await run(`$('setAntiCheat').scrollIntoView({ block: 'center' })`);
   await shot('anticheat-settings-light.png');
   await run(`document.documentElement.dataset.theme = 'dark'`);
@@ -107,6 +113,14 @@ app.whenReady().then(async () => {
   await run(`$('setAntiCheatMode').value = 'auto'; $('setAntiCheatMode').dispatchEvent(new Event('change'))`);
   await settle();
   assert.equal(await run(`window.lab.antiCheatState().then(s => s.mode)`), 'auto');
+  await run(`$('setAntiCheatChannel').value = 'gitee'; $('setAntiCheatChannel').dispatchEvent(new Event('change'))`);
+  await settle();
+  assert.equal(await run(`window.lab.antiCheatState().then(s => s.channel)`), 'gitee', 'the list channel is remembered');
+  await run(`$('setUpdateSource').value = 'gitee'; $('setUpdateSource').dispatchEvent(new Event('change'))`);
+  await settle();
+  assert.equal(await run(`state.updateSource`), 'gitee', 'the update source is remembered');
+  await run(`$('setUpdateSource').value = 'github'; $('setUpdateSource').dispatchEvent(new Event('change'))`);
+  await settle();
   await run(`$('setAntiCheat').click()`);
   await settle();
   assert.equal(await run(`$('setAntiCheat').getAttribute('aria-checked')`), 'false');
@@ -135,6 +149,32 @@ app.whenReady().then(async () => {
   await run(`document.querySelector('dialog.ask [data-ask="confirm"]').click()`);
   await accepted;
   assert.deepEqual(await run(`window.lab.testAntiCheatCalls().map(c => c[0])`), ['check', 'ignore', 'check', 'apply']);
+
+  // The release dialog asks which host to download from, and links to both
+  // release pages for a manual download.
+  await run(`window.lab.testUpdateAnswer({
+    current: '2.0.5', latest: '9.9.9', newer: true, tag: 'v9.9.9', source: 'github',
+    asset: { name: 'DLSS5-Swapper-Setup-9.9.9.exe', url: 'https://example.test/Setup.exe' },
+    notes: 'Fixture notes'
+  })`);
+  await run(`checkForUpdates({ manual: true })`);
+  await run(`new Promise(resolve => {
+    const check = () => $('updateOverlay').classList.contains('hidden') ? setTimeout(check, 10) : resolve();
+    check();
+  })`);
+  assert.equal(await run(`$('updateGitee').textContent`), await run(`t('updateOpenGitee')`));
+  await run(`$('updateGitee').click()`);
+  assert.deepEqual(await run(`window.lab.testProjectLinks()`), ['zhGiteeReleases']);
+  await run(`$('updateNow').click()`);
+  await settle();
+  assert.equal(await run(`$('updatePick').classList.contains('hidden')`), false);
+  assert.equal(await run(`$('updatePick').querySelectorAll('[data-update-source]').length`), 2);
+  assert.match(await run(`$('updatePick').textContent`), /Gitee/);
+  await shot('update-source-picker.png');
+  await run(`$('updatePick').querySelector('[data-update-source="gitee"]').click()`);
+  await settle();
+  assert.deepEqual(await run(`window.lab.testUpdateDownloads()`), ['gitee']);
+  await run(`closeUpdateDialog()`);
 
   // Installing while the list is still being checked asks before skipping:
   // warning with stale data is the person's decision to make.

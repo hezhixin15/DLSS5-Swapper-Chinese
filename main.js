@@ -646,6 +646,7 @@ ipcMain.handle('settings', () => {
     groupGamesByStore: state.groupGamesByStore !== false,
     closeToTray: state.closeToTray !== false,
     autoUpdateCheck: state.autoUpdateCheck !== false,
+    updateSource: updateSourceOf(state),
     skippedUpdates: [...(state.skippedUpdates || [])],
     safeGraphics: state.safeGraphics === true,
     skin: state.skin === 'two' ? 'two' : 'one',
@@ -658,6 +659,7 @@ ipcMain.handle('settings', () => {
 // matching is a string comparison and must never wait on the network. Only
 // the download may take ten seconds, and it replaces the list whole.
 const ANTI_CHEAT_MODES = ['prompt', 'auto', 'off'];
+const ANTI_CHEAT_CHANNELS = ['github', 'gitee'];
 const ANTI_CHEAT_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 let antiCheatLoaded = { names: [], source: 'none', hash: '', text: '' };
 let antiCheatReady = false;
@@ -672,6 +674,7 @@ function antiCheatPrefs(state) {
     // way it did before this existed, and the setting says coverage is worse.
     detect: state.antiCheatDetect !== false,
     mode: ANTI_CHEAT_MODES.includes(state.antiCheatListMode) ? state.antiCheatListMode : 'prompt',
+    channel: ANTI_CHEAT_CHANNELS.includes(state.antiCheatListChannel) ? state.antiCheatListChannel : 'github',
     skippedHash: typeof state.antiCheatListSkippedHash === 'string' ? state.antiCheatListSkippedHash : '',
     checkedAt: Number(state.antiCheatListCheckedAt) || 0,
     updatedAt: Number(state.antiCheatListUpdatedAt) || 0
@@ -695,6 +698,7 @@ function antiCheatState() {
   return {
     detect: prefs.detect,
     mode: prefs.mode,
+    channel: prefs.channel,
     source: antiCheatLoaded.source,
     // What is actually consulted: with detection off the file is still there,
     // but nothing warns from it.
@@ -730,7 +734,9 @@ async function checkAntiCheatList({ manual = false } = {}) {
     }
   }
   antiCheatChecking = true;
-  const found = await antiCheatListSource.fetchList();
+  const found = await antiCheatListSource.fetchList({
+    sources: antiCheatListSource.sourcesFor(prefs.channel)
+  });
   antiCheatChecking = false;
   const state = loadState();
   state.antiCheatListCheckedAt = Date.now();
@@ -791,6 +797,12 @@ ipcMain.handle('set-anti-cheat-list-mode', (_event, mode) => {
   state.antiCheatListMode = ANTI_CHEAT_MODES.includes(mode) ? mode : 'prompt';
   saveState(state);
   return state.antiCheatListMode;
+});
+ipcMain.handle('set-anti-cheat-list-channel', (_event, channel) => {
+  const state = loadState();
+  state.antiCheatListChannel = ANTI_CHEAT_CHANNELS.includes(channel) ? channel : 'github';
+  saveState(state);
+  return state.antiCheatListChannel;
 });
 
 // ---------- community compatibility ----------
@@ -1789,7 +1801,6 @@ ipcMain.handle('art-fetch', async (_event, dir, name, appid) => {
 // on a build for weeks without knowing. One lookup per launch, no identifiers
 // sent, no download started: the answer is a version number and a link the
 // person may click. Any failure is silence - this must never delay a start.
-let updateAnswer = null;
 // Nothing wrote the app's own failures down anywhere, so a crash left the
 // person with nothing to report but a description. Keep the last few in
 // userData, bounded, and let the diagnostics file carry them.
@@ -1822,47 +1833,126 @@ function newerRelease(current, latest) {
   return false;
 }
 // The Chinese enhanced edition checks its own repository, so the version found
-// there is one this build can actually update to.
+// there is one this build can actually update to. GitHub is the primary host
+// and Gitee the mirror for people who cannot reach it; the choice is kept in
+// the settings and used for both the check and the download.
 const UPDATE_REPO = 'hezhixin15/DLSS5-Swapper-Chinese';
 const UPDATE_TIMEOUT_MS = 10000;
-async function lookupUpdate() {
-  if (updateAnswer) return updateAnswer;
-  const current = app.getVersion();
-  try {
-    const response = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, {
-      headers: { 'User-Agent': `DLSS5-Swapper/${current}`, Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(UPDATE_TIMEOUT_MS)
+const UPDATE_SOURCES = ['github', 'gitee'];
+const updateSourceOf = (state) => (UPDATE_SOURCES.includes(state.updateSource) ? state.updateSource : 'github');
+const updateSourceInfo = (source) => (source === 'gitee'
+  ? {
+      name: 'Gitee',
+      latest: `https://gitee.com/api/v5/repos/${UPDATE_REPO}/releases/latest`,
+      tag: (tag) => `https://gitee.com/api/v5/repos/${UPDATE_REPO}/releases/tags/${encodeURIComponent(tag)}`,
+      accept: 'application/json'
+    }
+  : {
+      name: 'GitHub',
+      latest: `https://api.github.com/repos/${UPDATE_REPO}/releases/latest`,
+      tag: (tag) => `https://api.github.com/repos/${UPDATE_REPO}/releases/tags/${encodeURIComponent(tag)}`,
+      accept: 'application/vnd.github+json'
     });
-    if (!response.ok) throw Error(String(response.status));
-    const release = await response.json();
-    const latest = String(release.tag_name || '').replace(/^v/, '');
-    // The one-click installer is the first .exe the release carries; a release
-    // without one still tells the person what is new and where to get it.
-    const asset = (release.assets || []).find((a) => /\.exe$/i.test(String(a.name || '')));
-    updateAnswer = {
-      current, latest, newer: newerRelease(current, latest),
-      asset: asset && asset.browser_download_url ? { name: asset.name, url: asset.browser_download_url } : null,
-      notes: typeof release.body === 'string' && release.body.trim() ? release.body.trim() : null
-    };
+// The one-click update should run the installer, not the portable build, when
+// a release carries both. A release without any .exe still tells the person
+// what is new and where to get it.
+function updateAsset(release) {
+  const exes = (Array.isArray(release?.assets) ? release.assets : [])
+    .filter((a) => /\.exe$/i.test(String(a?.name || '')));
+  const asset = exes.find((a) => /setup/i.test(String(a.name))) || exes[0];
+  return asset && asset.browser_download_url ? { name: asset.name, url: asset.browser_download_url } : null;
+}
+async function fetchRelease(source, url, current) {
+  const info = updateSourceInfo(source);
+  const response = await fetch(url, {
+    headers: { 'User-Agent': `DLSS5-Swapper/${current}`, Accept: info.accept },
+    signal: AbortSignal.timeout(UPDATE_TIMEOUT_MS)
+  });
+  if (!response.ok) throw Error(String(response.status));
+  return response.json();
+}
+function describeRelease(source, release, current) {
+  const tag = typeof release?.tag_name === 'string' ? release.tag_name : '';
+  const latest = tag.replace(/^v/, '');
+  return {
+    current, latest: latest || null, newer: newerRelease(current, latest), tag: tag || null,
+    asset: updateAsset(release), source,
+    notes: typeof release?.body === 'string' && release.body.trim() ? release.body.trim() : null
+  };
+}
+// One answer per source per launch: switching the preferred source in the
+// settings must not repeat a lookup that already succeeded.
+const updateAnswers = new Map();
+async function lookupSource(source) {
+  if (updateAnswers.has(source)) return updateAnswers.get(source);
+  const current = app.getVersion();
+  let answer;
+  try {
+    answer = describeRelease(source, await fetchRelease(source, updateSourceInfo(source).latest, current), current);
   } catch {
     // Offline, rate-limited or blocked: say nothing rather than worry anyone.
-    updateAnswer = { current, latest: null, newer: false, asset: null, notes: null };
+    answer = { current, latest: null, newer: false, tag: null, asset: null, notes: null, source };
   }
-  return updateAnswer;
+  updateAnswers.set(source, answer);
+  return answer;
+}
+async function lookupUpdate(preferred = updateSourceOf(loadState())) {
+  const first = UPDATE_SOURCES.includes(preferred) ? preferred : 'github';
+  let answer = null;
+  for (const source of [first, ...UPDATE_SOURCES.filter((s) => s !== first)]) {
+    answer = await lookupSource(source);
+    // A source that could not answer is not the last word: ask the other one.
+    if (answer.latest) return answer;
+  }
+  return answer;
 }
 ipcMain.handle('update-check', () => lookupUpdate());
+ipcMain.handle('set-update-source', (_event, source) => {
+  const state = loadState();
+  state.updateSource = UPDATE_SOURCES.includes(source) ? source : 'github';
+  saveState(state);
+  return state.updateSource;
+});
+
+// The chosen source must hand over the version the dialog offered. Asking the
+// tag endpoint first means a mirror that lags behind cannot quietly install an
+// older build under the new version's name.
+async function findDownloadAsset(source, answer) {
+  if (answer.source === source && answer.asset) return { asset: answer.asset };
+  const info = updateSourceInfo(source);
+  const tags = [...new Set([answer.tag, `v${answer.latest}`, answer.latest].filter(Boolean))];
+  let answered = false;
+  for (const tag of tags) {
+    try {
+      const release = await fetchRelease(source, info.tag(tag), answer.current);
+      answered = true;
+      if (String(release?.tag_name || '').replace(/^v/, '') === answer.latest) return { asset: updateAsset(release) };
+    } catch { /* try the next spelling, then the latest release */ }
+  }
+  try {
+    const release = await fetchRelease(source, info.latest, answer.current);
+    answered = true;
+    if (String(release?.tag_name || '').replace(/^v/, '') === answer.latest) return { asset: updateAsset(release) };
+  } catch { /* this source is not answering either */ }
+  if (!answered) return { error: `${info.name} could not be reached` };
+  return { asset: null };
+}
 
 // One download at a time; a second click while one runs is a no-op.
 let updateDownloading = false;
-ipcMain.handle('download-update', async (event) => {
+ipcMain.handle('download-update', async (event, requested) => {
   if (updateDownloading) return { ok: false, reason: 'busy' };
   const answer = await lookupUpdate();
-  if (!answer.latest || !answer.asset) return { ok: false, reason: 'no-asset' };
+  if (!answer.latest) return { ok: false, reason: 'no-latest' };
+  const source = UPDATE_SOURCES.includes(requested) ? requested : (answer.source || 'github');
   updateDownloading = true;
   const sender = event.sender;
   const file = path.join(app.getPath('temp'), `DLSS5-Swapper-${answer.latest}-${Date.now()}.exe`);
   try {
-    const response = await fetch(answer.asset.url, { signal: AbortSignal.timeout(10 * 60 * 1000) });
+    const found = await findDownloadAsset(source, answer);
+    if (found.error) return { ok: false, reason: 'download', message: found.error };
+    if (!found.asset) return { ok: false, reason: 'no-asset', source, sourceName: updateSourceInfo(source).name };
+    const response = await fetch(found.asset.url, { signal: AbortSignal.timeout(10 * 60 * 1000) });
     if (!response.ok || !response.body) throw Error(String(response.status));
     const total = Number(response.headers.get('content-length') || 0);
     let received = 0;

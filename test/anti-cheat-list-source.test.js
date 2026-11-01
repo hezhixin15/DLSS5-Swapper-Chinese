@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { LIMITS } = require('../src/core/anti-cheat-list');
-const { SOURCES, fetchList } = require('../src/anti-cheat-list-source');
+const { SOURCES, SOURCES_BY_CHANNEL, sourcesFor, fetchList } = require('../src/anti-cheat-list-source');
 
 const body = (text) => ({ ok: true, status: 200, text: async () => text });
 const notFound = { ok: false, status: 404, text: async () => 'nope' };
@@ -80,4 +80,12 @@ test('the caller decides which sources are tried', async () => {
   assert.deepEqual(asked, ['https://mine/list.txt']);
   assert.ok(SOURCES.every(url => url.startsWith('https://')), 'nothing but https is configured');
   assert.ok(SOURCES.length >= 2, 'a mirror is configured before the first release');
+});
+
+test('each channel has its own sources, and GitHub is the fallback', () => {
+  assert.deepEqual(sourcesFor('github'), SOURCES_BY_CHANNEL.github);
+  assert.deepEqual(sourcesFor('gitee'), SOURCES_BY_CHANNEL.gitee);
+  assert.ok(SOURCES_BY_CHANNEL.gitee.length >= 1);
+  assert.ok(SOURCES_BY_CHANNEL.gitee.every(url => url.startsWith('https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese/')));
+  assert.deepEqual(sourcesFor('nonsense'), SOURCES, 'an unknown channel reads GitHub');
 });
