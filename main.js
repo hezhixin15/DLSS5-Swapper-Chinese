@@ -1391,6 +1391,10 @@ function newerRelease(current, latest) {
 const UPDATE_REPO = 'hezhixin15/DLSS5-Swapper-Chinese';
 const UPDATE_TIMEOUT_MS = 10000;
 const UPDATE_SOURCES = ['github', 'gitee'];
+const UPDATE_MANIFEST = 'update-manifest.json';
+const UPDATE_SIGNATURE = 'update-manifest.json.sig';
+const integrity = require('./src/core/update-integrity.js');
+const { UPDATE_PUBLIC_KEY } = require('./src/core/update-public-key.js');
 const updateSourceOf = (state) => (UPDATE_SOURCES.includes(state.updateSource) ? state.updateSource : 'github');
 const updateSourceInfo = (source) => (source === 'gitee'
   ? {
@@ -1414,6 +1418,20 @@ function updateAsset(release) {
   const asset = exes.find((a) => /setup/i.test(String(a.name))) || exes[0];
   return asset && asset.browser_download_url ? { name: asset.name, url: asset.browser_download_url } : null;
 }
+// The signed manifest and its detached signature ride beside the installer.
+// Without both, the download carries no evidence of what it is.
+function releaseFile(release, name) {
+  const asset = (Array.isArray(release?.assets) ? release.assets : [])
+    .find((a) => String(a?.name || '').toLowerCase() === name);
+  return asset && asset.browser_download_url ? { name: asset.name, url: asset.browser_download_url } : null;
+}
+function releaseFiles(release) {
+  return {
+    asset: updateAsset(release),
+    manifest: releaseFile(release, UPDATE_MANIFEST),
+    signature: releaseFile(release, UPDATE_SIGNATURE)
+  };
+}
 async function fetchRelease(source, url, current) {
   const info = updateSourceInfo(source);
   const response = await fetch(url, {
@@ -1429,6 +1447,8 @@ function describeRelease(source, release, current) {
   return {
     current, latest: latest || null, newer: newerRelease(current, latest), tag: tag || null,
     asset: updateAsset(release), source,
+    manifest: releaseFile(release, UPDATE_MANIFEST),
+    signature: releaseFile(release, UPDATE_SIGNATURE),
     notes: typeof release?.body === 'string' && release.body.trim() ? release.body.trim() : null
   };
 }
@@ -1470,7 +1490,9 @@ ipcMain.handle('set-update-source', (_event, source) => {
 // tag endpoint first means a mirror that lags behind cannot quietly install an
 // older build under the new version's name.
 async function findDownloadAsset(source, answer) {
-  if (answer.source === source && answer.asset) return { asset: answer.asset };
+  if (answer.source === source && answer.asset) {
+    return { asset: answer.asset, manifest: answer.manifest || null, signature: answer.signature || null };
+  }
   const info = updateSourceInfo(source);
   const tags = [...new Set([answer.tag, `v${answer.latest}`, answer.latest].filter(Boolean))];
   let answered = false;
@@ -1478,16 +1500,47 @@ async function findDownloadAsset(source, answer) {
     try {
       const release = await fetchRelease(source, info.tag(tag), answer.current);
       answered = true;
-      if (String(release?.tag_name || '').replace(/^v/, '') === answer.latest) return { asset: updateAsset(release) };
+      if (String(release?.tag_name || '').replace(/^v/, '') === answer.latest) return releaseFiles(release);
     } catch { /* try the next spelling, then the latest release */ }
   }
   try {
     const release = await fetchRelease(source, info.latest, answer.current);
     answered = true;
-    if (String(release?.tag_name || '').replace(/^v/, '') === answer.latest) return { asset: updateAsset(release) };
+    if (String(release?.tag_name || '').replace(/^v/, '') === answer.latest) return releaseFiles(release);
   } catch { /* this source is not answering either */ }
   if (!answered) return { error: `${info.name} could not be reached` };
   return { asset: null };
+}
+
+// Manifests are a few hundred bytes; nothing legitimate comes close to the
+// caps, so a body beyond them is refused before it is kept in memory.
+async function readUpdateFile(url, limit, reason, label) {
+  const response = await fetch(url, { signal: AbortSignal.timeout(UPDATE_TIMEOUT_MS) });
+  if (!response.ok || !response.body) {
+    throw new integrity.IntegrityError(reason, `${label} could not be downloaded (${response.status}).`);
+  }
+  const declared = Number(response.headers?.get?.('content-length') || 0);
+  if (declared > limit) throw new integrity.IntegrityError(reason, `${label} is larger than ${limit} bytes.`);
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of response.body) {
+    total += chunk.length;
+    if (total > limit) throw new integrity.IntegrityError(reason, `${label} is larger than ${limit} bytes.`);
+    chunks.push(Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
+// A half-written file is still an executable-shaped file on disk. Close the
+// stream before deleting it: Windows refuses to unlink an open file, and a
+// pending open must not be left to fail on its own afterwards.
+async function discardDownload(stream) {
+  if (!stream || stream.closed) return;
+  stream.on('error', () => { /* the download already failed; closing is cleanup */ });
+  await new Promise((resolve) => {
+    stream.once('close', resolve);
+    stream.destroy();
+  });
 }
 
 // One download at a time; a second click while one runs is a no-op.
@@ -1499,18 +1552,34 @@ ipcMain.handle('download-update', async (event, requested) => {
   const source = UPDATE_SOURCES.includes(requested) ? requested : (answer.source || 'github');
   updateDownloading = true;
   const sender = event.sender;
+  const sourceName = updateSourceInfo(source).name;
   const file = path.join(app.getPath('temp'), `DLSS5-Swapper-${answer.latest}-${Date.now()}.exe`);
+  let out = null;
   try {
     const found = await findDownloadAsset(source, answer);
     if (found.error) return { ok: false, reason: 'download', message: found.error };
-    if (!found.asset) return { ok: false, reason: 'no-asset', source, sourceName: updateSourceInfo(source).name };
+    if (!found.asset) return { ok: false, reason: 'no-asset', source, sourceName };
+    // The signature is checked before the installer is even requested: a
+    // release that cannot prove what it ships never gets to hand anything over.
+    if (!found.manifest || !found.signature) return { ok: false, reason: 'no-manifest', source, sourceName };
+    const manifestBytes = await readUpdateFile(found.manifest.url, integrity.MANIFEST_MAX_BYTES, 'no-manifest', 'The update manifest');
+    const signature = (await readUpdateFile(found.signature.url, integrity.SIGNATURE_MAX_BYTES, 'bad-signature', 'The update signature')).toString('utf8');
+    const manifest = integrity.assertVersion(
+      integrity.verifyManifest(manifestBytes, signature, UPDATE_PUBLIC_KEY),
+      answer.latest
+    );
+    const entry = integrity.findAsset(manifest, found.asset.name);
     const response = await fetch(found.asset.url, { signal: AbortSignal.timeout(10 * 60 * 1000) });
     if (!response.ok || !response.body) throw Error(String(response.status));
     const total = Number(response.headers.get('content-length') || 0);
     let received = 0;
-    const out = fs.createWriteStream(file);
+    // The hash is fed from the same bytes that reach the disk, so the check
+    // covers exactly the file that would be launched.
+    const hasher = crypto.createHash('sha256');
+    out = fs.createWriteStream(file);
     for await (const chunk of response.body) {
       received += chunk.length;
+      hasher.update(chunk);
       // Respect the stream's high-water mark so a fast link cannot buffer the
       // whole installer in memory ahead of the disk.
       if (!out.write(chunk)) await new Promise((resolve) => out.once('drain', resolve));
@@ -1519,6 +1588,13 @@ ipcMain.handle('download-update', async (event, requested) => {
       if (total) sender.send('update-progress', { percent: Math.min(100, Math.round((received / total) * 100)) });
     }
     await new Promise((resolve, reject) => out.end((err) => (err ? reject(err) : resolve())));
+    if (received !== entry.size) {
+      throw new integrity.IntegrityError('size-mismatch', `Expected ${entry.size} bytes, got ${received}.`);
+    }
+    const digest = hasher.digest('hex');
+    if (digest !== entry.sha256) {
+      throw new integrity.IntegrityError('sha256-mismatch', `Expected sha256 ${entry.sha256}, got ${digest}.`);
+    }
     sender.send('update-progress', { percent: 100 });
     // Hand it to the installer and step aside; the running copy cannot update
     // itself in place, so it exits and lets the installer take over.
@@ -1526,7 +1602,11 @@ ipcMain.handle('download-update', async (event, requested) => {
     setImmediate(() => app.quit());
     return { ok: true };
   } catch (error) {
-    try { fs.unlinkSync(file); } catch { /* nothing was fully written */ }
+    await discardDownload(out);
+    try { fs.rmSync(file, { force: true, maxRetries: 3, retryDelay: 50 }); } catch { /* nothing was fully written */ }
+    if (error instanceof integrity.IntegrityError) {
+      return { ok: false, reason: error.reason, source, sourceName, message: error.message };
+    }
     return { ok: false, reason: 'download', message: error && error.message ? error.message : String(error) };
   } finally {
     updateDownloading = false;

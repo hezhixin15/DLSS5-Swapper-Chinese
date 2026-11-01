@@ -1159,6 +1159,13 @@ async function startUpdateDownload(source) {
     // so only failures come back here.
     if (result && result.reason === 'no-asset') {
       showToast(t('updateNoAssetSource', result.sourceName || (source === 'gitee' ? 'Gitee' : 'GitHub')));
+    } else if (result && [
+      'no-manifest', 'bad-signature', 'bad-manifest', 'manifest-version',
+      'asset-not-listed', 'size-mismatch', 'sha256-mismatch'
+    ].includes(result.reason)) {
+      // The download was refused, not merely broken: say so plainly and point
+      // at the manual route, because retrying the same source will not help.
+      showToast(t('updateIntegrityFailed'));
     } else {
       showToast(t('updateFailed', (result && (result.message || result.reason)) || ''));
     }
