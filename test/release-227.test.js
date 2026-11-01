@@ -38,12 +38,6 @@ test('every installed game has its read-only ReShade.ini cleared once per start 
   assert.match(main, /repairReadOnlyConfigs\(lastGames\);\s*return lastGames;/);
 });
 
-test('a report carries the store id the library already knew (#274)', () => {
-  const main = read('main.js');
-  assert.match(main, /storeId: g\.id \? String\(g\.id\) : null,/);
-  assert.match(main, /storeId: store && game\.storeId \? game\.storeId : null/);
-});
-
 test('the uninstaller says uninstalling does not restore games (#266)', () => {
   const pkg = JSON.parse(read('package.json'));
   assert.equal(pkg.build.nsis.include, 'build/installer.nsh');
@@ -51,55 +45,4 @@ test('the uninstaller says uninstalling does not restore games (#266)', () => {
   assert.match(script, /!macro customUnInit/);
   assert.match(script, /Restore originals/);
   assert.match(script, /isUpdated/, 'and it stays out of the way of an update');
-});
-
-// The "You" on the My games button: a second key called \`mine\` in the same
-// table silently replaced the first. One name, one meaning.
-test('no label on the community page is defined twice', () => {
-  const page = read('src', 'renderer', 'community.js');
-  for (const lang of ['en', 'ar']) {
-    const start = page.indexOf(`    ${lang}: {`);
-    const end = page.indexOf('\n    }', start);
-    const block = page.slice(start, end).replace(/facts: \{[^}]*\}/, '');
-    const keys = [...block.matchAll(/(?:^|[,{\s])([a-zA-Z][a-zA-Z0-9]*):\s/g)].map(match => match[1]).slice(1);
-    const twice = keys.filter((key, index) => keys.indexOf(key) !== index);
-    assert.deepEqual([...new Set(twice)], [], lang);
-  }
-});
-
-// Somebody names you in the chat, answers you there, or likes what you wrote:
-// each is a Windows notification now, and clicking a chat one opens the chat on
-// that message.
-test('reactions and chat reach you as notifications', () => {
-  const client = read('src', 'community-client.js');
-  assert.match(client, /\/v1\/me\/notices\?since=\$\{since\}&include=chat,reaction/);
-  const page = read('src', 'renderer', 'community.js');
-  for (const kind of ['reaction', 'chat-mention', 'chat-reply', 'chat-reaction']) {
-    assert.match(page, new RegExp(`notice\\.kind === '${kind}'`), kind);
-  }
-  for (const key of ['noticeReacted', 'noticeChatMention', 'noticeChatReply', 'noticeChatReaction']) {
-    assert.equal((page.match(new RegExp(`${key}: `, 'g')) || []).length, 3, `${key} in English, Arabic and Chinese`);
-  }
-  assert.match(page, /if \(notice\?\.chat\) \{\s*document\.querySelector\('\[data-view="chat"\]'\)\?\.click\(\);\s*await window\.chatUi\?\.focusMessage\?\.\(notice\.chat\);/);
-  assert.match(read('src', 'renderer', 'chat.js'), /window\.chatUi = \{ render, stopPolling, applyLanguage, focusMessage \};/);
-});
-
-// Seen on the live server: Hogwarts, GTA V and a dozen more showed twice under
-// My games, because each has a card filed by executable and an older one filed
-// by title. One game, one card.
-test('My games shows each game once, on its fullest card', () => {
-  const page = read('src', 'renderer', 'community.js');
-  assert.match(page, /if \(scope === 'mine'\) \{\s*const best = new Map\(\);/);
-  assert.match(page, /state\.cards = state\.cards\.filter\(card => !card\.local \|\| best\.get\(card\.local\) === card\);/);
-  // And the choice runs before the "no reviews yet" list is worked out from it.
-  assert.ok(page.indexOf('const best = new Map();') < page.indexOf('state.unreported = scope ==='), 'dedupe first');
-});
-
-// Seen in the running app: switching to Everyone and choosing "My card" at once
-// sent two requests, and the older, unfiltered answer landed last and painted
-// over the filtered one. Only the newest request may paint.
-test('a late answer never paints over a newer filter', () => {
-  const page = read('src', 'renderer', 'community.js');
-  assert.match(page, /const ticket = state\.renderTicket = \(state\.renderTicket \|\| 0\) \+ 1;/);
-  assert.match(page, /\]\);\s*if \(ticket !== state\.renderTicket\) return;\s*\$\('communityRefresh'\)\.disabled = false;/);
 });

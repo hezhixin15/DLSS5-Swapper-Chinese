@@ -23,7 +23,6 @@ let projectLinkFailure = false;
 const projectLinks = [];
 let clearCacheCalls = 0;
 let clearCacheResult = null;
-let noticeSettings = true;
 // The guide covers the app while it is open, so the filters suite runs with it
 // already decided. The tutorial suite starts it pending instead.
 const windowCalls = [];
@@ -93,11 +92,6 @@ contextBridge.exposeInMainWorld('lab', {
   testAntiCheatCalls: () => antiCheatCalls,
   testAntiCheatReset: () => { antiCheatCalls.length = 0; },
   setGroupGamesByStore: async (enabled) => { groupGamesByStore = enabled; return enabled; },
-  communityNoticeSettings: async (on) => {
-    if (on !== undefined) noticeSettings = Boolean(on);
-    return { on: noticeSettings };
-  },
-  communityOptedIn: async () => ({ ok: true, on: false }),
   testLibraryReads: () => libraryReads,
   recents: async () => [],
   history: async () => {
@@ -107,17 +101,6 @@ contextBridge.exposeInMainWorld('lab', {
   copyText: async text => { if (copyFailure) return false; copiedText = text; return true; },
   testCopiedText: () => copiedText,
   testCopyFailure: value => { copyFailure = value; },
-  communityProfile: async () => ({ name: 'Fixture', icon: 0, tag: 'test' }),
-  communityForGame: async () => ({ ok: false }),
-  communitySaveProfile: async profile => ({ ok: true, profile: { ...profile, tag: 'test' } }),
-  communityDeleteMe: async () => ({ ok: true, result: { reports: 0, replies: 0 } }),
-  communityCards: async () => ({ ok: true, cards: [], total: 0 }),
-  communityCard: async () => ({ ok: false, error: 'not_found' }),
-  communityUpdates: async () => ({ ok: true, notModified: true }),
-  communityMyReports: async () => ({ ok: true, result: { reports: [] } }),
-  communityPrefill: async dir => ({ ok: true, prefill: { title: 'Fixture game', game: { title: 'Fixture game', exe: 'Game.exe' }, route: 'feeder', api: 'dx12', gpu: 'Fixture GPU', driver: '1.0', cpu: 'Fixture CPU', os: 'win32 test', app: 'test', dir } }),
-  communityReport: async () => ({ ok: true, result: { card: 'title:fixturegame', report: 1 } }),
-  communityReaction: async () => ({ ok: true }),
   testActionCalls: () => gameActionCalls,
   open: async dir => { gameActionCalls.push({ action: 'open', dir }); return ''; },
   openProject: async value => { projectLinks.push(value); return !projectLinkFailure; },

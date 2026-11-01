@@ -55,7 +55,6 @@ function seed(root) {
   put('posters/abc.png');
   put('overlay-library/entries/deadbeef.json', '{}');
   put('history.jsonl', '{"kind":"install"}\n');
-  put('community.json', '{"name":"me"}');
   put('library.json', JSON.stringify({
     folders: ['D:\\Games'],
     hidden: ['D:\\Games\\Bad'],
@@ -82,7 +81,7 @@ test('clearing the cache deletes the rebuildable files and keeps the user’s', 
     assert.equal(fs.existsSync(path.join(root, gone)), false, `${gone} is deleted`);
   }
   for (const kept of ['posters/abc.png', 'overlay-library/entries/deadbeef.json',
-    'history.jsonl', 'community.json', 'library.json']) {
+    'history.jsonl', 'library.json']) {
     assert.equal(fs.existsSync(path.join(root, kept)), true, `${kept} stays`);
   }
 });

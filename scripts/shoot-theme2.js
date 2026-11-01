@@ -73,15 +73,6 @@ app.whenReady().then(async () => {
     await run(`closeSheet(); openSheet(${JSON.stringify(dir)}); true`);
     await settle(`!!document.getElementById('doInstall')`, 'game page');
     await wait(1400);
-    if (skin === 'two' && process.env.SHOT_COMMUNITY === '1') {
-      await run(`(() => {
-        const box = document.getElementById('sheetCommunity');
-        if (!box) return false;
-        box.innerHTML = '<header><b>What the community found</b><span class="sheet-community-status working">Working</span><button class="ghost sm" type="button">Open reports</button></header><div class="sheet-community-routes"><div class="sheet-community-route"><span>RenoDX</span><span class="g"><i></i>21</span><span class="y"><i></i>4</span><span class="r"><i></i>5</span></div><div class="sheet-community-route"><span>Feeder</span><span class="g"><i></i>1</span><span class="y"><i></i>0</span><span class="r"><i></i>0</span></div><div class="sheet-community-route"><span>OptiScaler</span><span class="g"><i></i>3</span><span class="y"><i></i>0</span><span class="r"><i></i>2</span></div></div><p>36 reports · 10 comments</p>';
-        box.hidden = false;
-        return true;
-      })()`);
-    }
     await shot(`${skin}-3-game.png`);
     if (skin === 'two') {
       await run(`document.querySelector('.t2-tab[data-tab="about"]')?.click(); true`);

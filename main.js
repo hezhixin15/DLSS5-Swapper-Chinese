@@ -2,11 +2,10 @@
 // DLSS 5 Swapper
 // Finds the games already on the machine and installs DLSS 5 Neural
 // Rendering into them, using the scanners in src/core.
-const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu, Tray, Notification, nativeImage, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu, Tray, nativeImage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL, fileURLToPath } = require('url');
-const { paletteFromPixels, mergePalettes } = require('./src/core/palette');
 const crypto = require('crypto');
 
 const os = require('os');
@@ -19,8 +18,6 @@ const { backupRoot, saveActiveManifest, writeTracked, makeReShadeConfigWritable 
 const { scanSource } = require('./src/core/scan.js');
 const pe = require('./src/core/pe.js');
 const { ensureLumenite, ensureDgVoodoo, missingVCRuntime } = require('./src/core/runtime-components.js');
-const communityKeys = require('./src/shared/community-keys');
-const gpuModel = require('./src/shared/gpu-model');
 // A component that downloaded and verified, then vanished before it could be
 // used, is a security tool quarantining it - never the connection. Saying
 // "check your connection" there sends people after the wrong thing.
@@ -44,27 +41,8 @@ const featureText = (key, ...args) => featureI18n.t(loadState().lang, key, ...ar
 const vulkanLayer = require('./src/core/vulkan-layer');
 const { HistoryStore, knownFolders, fromManifests } = require('./src/core/history');
 const gameMenu = require('./src/core/game-menu');
-const { CommunityClient, ADMIN_TOKEN_PATTERN } = require('./src/community-client');
-const { AdminVault } = require('./src/admin-vault');
 let historyStore;
 const history = () => historyStore || (historyStore = new HistoryStore(path.join(app.getPath('userData'), 'history.jsonl')));
-let communityClient;
-let adminVault;
-const adminAccess = () => adminVault || (adminVault = new AdminVault({
-  file: path.join(app.getPath('userData'), 'community-admin.bin'), storage: safeStorage
-}));
-const community = () => communityClient || (communityClient = new CommunityClient({
-  file: path.join(app.getPath('userData'), 'community.json'),
-  // Only ever set by hand, to point a development build at a server running
-  // locally. Unset - which is every installed copy - it is the real one.
-  baseUrl: process.env.DLSS5_COMMUNITY_API || undefined,
-  getAdminToken: () => adminAccess().load()
-}));
-const communityAnswer = async work => {
-  if (!communityUsed()) return { ok: false, error: 'community_opt_in', message: 'Community has not been opened yet', status: null };
-  try { return { ok: true, ...(await work()) }; }
-  catch (error) { return { ok: false, error: error.code || 'community_failed', message: error.message, status: error.status || null }; }
-};
 const gameName = dir => lastGames.find(game => keyFor(game.dir) === keyFor(dir))?.name || path.basename(dir);
 function saveOperation(dir, manifest, action, send) {
   try { history().record(dir, manifest, action, gameName(dir)); }
@@ -466,7 +444,6 @@ app.whenReady().then(async () => {
   // The icon is there from launch, not only after the first close - somebody
   // who wants the app parked in the tray wants to see that it is.
   if (loadState().closeToTray !== false) ensureTray();
-  if (communityUsed()) startNotices();
   try {
     overlayBridge = await require('./src/overlay-bridge')({ BrowserWindow, userData: app.getPath('userData'), lang: loadState().lang });
     if (quitting) overlayBridge.close();
@@ -805,338 +782,6 @@ ipcMain.handle('set-anti-cheat-list-channel', (_event, channel) => {
   return state.antiCheatListChannel;
 });
 
-// ---------- community compatibility ----------
-// Network access stays in the main process. The renderer receives only parsed
-// data and cannot choose an arbitrary host or attach the private install id to
-// another request.
-// Opening the Community page, filing a report or asking for a game's reports
-// is the opt-in; it is the only thing that switches the community side of the
-// app on (#358).
-ipcMain.handle('community-opt-in', () => { markCommunityUsed(); return { ok: true, on: true }; });
-ipcMain.handle('community-opted-in', () => ({ ok: true, on: communityUsed() }));
-ipcMain.handle('community-profile', async () => {
-  if (adminAccess().load()) {
-    try { await community().adminStatus(); }
-    catch (error) { if (error.code === 'admin_unauthorized') adminAccess().clear(); }
-  }
-  return community().profile();
-});
-ipcMain.handle('community-profile-save', (_event, profile) => communityAnswer(async () => ({
-  profile: await (async () => {
-    const input = profile && typeof profile === 'object' ? profile : {};
-    const candidate = String(input.name || '').trim();
-    if (!candidate.startsWith('dlss5_admin_')) return community().saveProfile(input);
-    if (!ADMIN_TOKEN_PATTERN.test(candidate)) throw Object.assign(new Error('Invalid administrator access code.'), { code: 'admin_unauthorized' });
-    const admin = await community().adminLogin(candidate);
-    adminAccess().save(candidate);
-    return { ...community().profile(), admin };
-  })()
-})));
-ipcMain.handle('community-admin-logout', () => communityAnswer(async () => {
-  adminAccess().clear();
-  community().adminLogout();
-  return { profile: { ...community().profile(), admin: null } };
-}));
-ipcMain.handle('community-delete-me', () => communityAnswer(async () => ({
-  result: await community().deleteMe()
-})));
-ipcMain.handle('community-cards', (_event, filters) => communityAnswer(async () => ({
-  ...(await community().cardsPage(filters && typeof filters === 'object' ? filters : {}))
-})));
-// The games on this machine as the community would name them: every key a
-// report about each could have been filed under, worked out by the server's
-// own rules from the library and the last scan.
-function libraryForCommunity() {
-  const scans = loadState().scans || {};
-  return lastGames.map((game) => {
-    const scan = scans[keyFor(game.dir)];
-    return {
-      dir: game.dir, title: game.name, poster: game.poster || null,
-      installed: fs.existsSync(path.join(game.dir, '_DLSS5_Backup', 'manifest.json')),
-      keys: communityKeys.keysFor({
-        title: game.name, exe: scan && scan.exe ? path.basename(scan.exe) : null,
-        store: communityKeys.storeOf(game.launcher), storeId: game.storeId
-      })
-    };
-  });
-}
-// "My games" and "My comments": the cards for the games on this machine, or for
-// the games this install reported on - sent as one request of keys.
-ipcMain.handle('community-search', (_event, filters, scope) => communityAnswer(async () => {
-  const input = { limit: 100, ...(filters && typeof filters === 'object' ? filters : {}) };
-  if (scope === 'reports') {
-    const mine = await community().myReports();
-    const keys = [...new Set((mine.reports || []).map((row) => row.card).filter(Boolean))];
-    return { ...(await community().cardsSearch(input, keys)) };
-  }
-  const library = libraryForCommunity();
-  const keys = [...new Set(library.flatMap((game) => game.keys))];
-  return { ...(await community().cardsSearch(input, keys)), library };
-}));
-// The game sheet, before installing: this one game's card, if it has one. An
-// older server answers 404 here, which means "not supported", not "no card".
-ipcMain.handle('community-for-game', (_event, dir) => communityAnswer(async () => {
-  const game = libraryForCommunity().find((row) => keyFor(row.dir) === keyFor(String(dir || '')));
-  if (!game || !game.keys.length) return { supported: true, card: null };
-  let page;
-  try { page = await community().cardsSearch({ limit: 5 }, game.keys); }
-  catch (error) { if (error.status === 404) return { supported: false }; throw error; }
-  const rank = (card) => { const at = game.keys.indexOf(card.key); return at === -1 ? 99 : at; };
-  return { supported: true, card: [...page.cards].sort((a, b) => rank(a) - rank(b))[0] || null };
-}));
-// The graphics cards people reported with, and this machine's own among them.
-ipcMain.handle('community-gpus', () => communityAnswer(async () => {
-  const [gpus, rows] = await Promise.all([community().gpus(), guards.gpuInfo().catch(() => null)]);
-  const mine = Array.isArray(rows) && rows[0] ? gpuModel.normaliseGpu(rows[0].name) : null;
-  return { gpus, mine };
-}));
-ipcMain.handle('community-my-reports', () => communityAnswer(async () => ({
-  result: await community().myReports()
-})));
-ipcMain.handle('community-replies', (_event, id, fresh) => communityAnswer(async () => ({
-  thread: await community().replies(id, { fresh: fresh === true })
-})));
-ipcMain.handle('community-reply', (_event, id, body, mentions) => communityAnswer(async () => ({
-  reply: await community().reply(id, typeof body === 'string' ? body : '', Array.isArray(mentions) ? mentions : [])
-})));
-ipcMain.handle('community-card', (_event, key, etag, fresh) => communityAnswer(async () => {
-  if (typeof key !== 'string' || key.length > 300) throw Object.assign(new Error('Invalid game card.'), { code: 'bad_card' });
-  const result = await community().card(key, typeof etag === 'string' ? etag : null, { fresh: fresh === true });
-  return result.notModified ? result : { card: result.data, etag: result.etag };
-}));
-ipcMain.handle('community-updates', (_event, key, since, etag) => communityAnswer(async () => {
-  if (typeof key !== 'string' || key.length > 300) throw Object.assign(new Error('Invalid game card.'), { code: 'bad_card' });
-  const result = await community().updates(key, since, typeof etag === 'string' ? etag : null);
-  return result.notModified ? result : { updates: result.data, etag: result.etag };
-}));
-ipcMain.handle('community-report', (_event, report) => communityAnswer(async () => ({
-  result: await community().report(report && typeof report === 'object' ? report : {})
-})));
-ipcMain.handle('community-withdraw', (_event, id) => communityAnswer(async () => ({
-  result: await community().withdraw(id)
-})));
-ipcMain.handle('community-withdraw-reply', (_event, id) => communityAnswer(async () => ({
-  result: await community().withdrawReply(id)
-})));
-ipcMain.handle('community-reaction', (_event, id, emoji, on) => communityAnswer(async () => ({
-  result: await community().react(id, emoji, on)
-})));
-ipcMain.handle('community-admin-moderate', (_event, kind, id, action) => communityAnswer(async () => ({
-  result: await community().adminModerate(kind, id, action)
-})));
-ipcMain.handle('community-chat-feed', (_event, options) => communityAnswer(async () => {
-  const input = options && typeof options === 'object' ? options : {};
-  const result = await community().chatFeed({
-    before: input.before, limit: Math.min(Math.max(Number(input.limit) || 50, 1), 100),
-    etag: typeof input.etag === 'string' ? input.etag : null
-  });
-  return result.notModified ? result : { feed: result.data, etag: result.etag };
-}));
-ipcMain.handle('community-chat-people', () => communityAnswer(async () => ({
-  people: await community().chatPeople()
-})));
-ipcMain.handle('community-chat-me', () => communityAnswer(async () => ({
-  me: await community().chatMe(), profile: community().profile()
-})));
-ipcMain.handle('community-chat-upload', (_event, meta, bytes) => communityAnswer(async () => {
-  const input = meta && typeof meta === 'object' ? meta : {};
-  if (!(bytes instanceof ArrayBuffer) || bytes.byteLength > 2 * 1024 * 1024) {
-    throw Object.assign(new Error('Compressed image size is invalid.'), { code: 'image_size' });
-  }
-  return { token: await community().chatUpload(input, bytes) };
-}));
-ipcMain.handle('community-chat-post', (_event, input) => communityAnswer(async () => ({
-  result: await community().chatPost(input && typeof input === 'object' ? input : {})
-})));
-ipcMain.handle('community-chat-edit', (_event, id, body) => communityAnswer(async () => ({
-  result: await community().chatEdit(id, typeof body === 'string' ? body : '')
-})));
-ipcMain.handle('community-chat-delete', (_event, id) => communityAnswer(async () => ({
-  result: await community().chatDelete(id)
-})));
-ipcMain.handle('community-chat-reaction', (_event, id, emoji, on) => communityAnswer(async () => ({
-  result: await community().chatReact(id, emoji, on)
-})));
-ipcMain.handle('community-chat-moderate', (_event, id, action) => communityAnswer(async () => ({
-  result: await community().chatModerate(id, action)
-})));
-ipcMain.handle('community-chat-save-image', async (event, source, suggestedName) => {
-  try {
-    const target = new URL(String(source || ''));
-    if (target.protocol !== 'https:' || target.hostname !== 'media.rakanki.com' || !target.pathname.startsWith('/chat/')) {
-      return { ok: false, message: 'This is not a community chat image.' };
-    }
-    const window = BrowserWindow.fromWebContents(event.sender);
-    const safeName = String(suggestedName || 'dlss5-chat-image').replace(/[^a-z0-9_-]+/gi, '-').slice(0, 80) || 'dlss5-chat-image';
-    const picked = await dialog.showSaveDialog(window, {
-      title: 'Save chat image', defaultPath: path.join(app.getPath('pictures'), `${safeName}.webp`),
-      filters: [{ name: 'WebP image', extensions: ['webp'] }]
-    });
-    if (picked.canceled || !picked.filePath) return { ok: false, cancelled: true };
-    const response = await fetch(target, { redirect: 'error', signal: AbortSignal.timeout(30_000) });
-    const announced = Number(response.headers.get('content-length')) || 0;
-    if (!response.ok || announced > 3 * 1024 * 1024) throw new Error('The image could not be downloaded safely.');
-    const data = Buffer.from(await response.arrayBuffer());
-    if (data.length > 3 * 1024 * 1024) throw new Error('The image is larger than expected.');
-    await fs.promises.writeFile(picked.filePath, data, { flag: 'wx' }).catch(async error => {
-      if (error.code !== 'EEXIST') throw error;
-      await fs.promises.writeFile(picked.filePath, data);
-    });
-    return { ok: true, file: picked.filePath };
-  } catch (error) { return { ok: false, message: error.message }; }
-});
-// The line over the title: where the game came from, and what the store calls
-// it. Both are already known - nothing here is guessed at.
-function kickerFor(dir, game) {
-  let genres = [];
-  try { genres = ((loadState().art || {})[keyFor(dir)] || {}).genres || []; } catch { /* none yet */ }
-  return [game.launcher, genres[0]].filter(Boolean).join(' · ') || null;
-}
-// The banner the library already downloaded for this folder, if there is one.
-function heroFor(dir) {
-  try {
-    const record = (loadState().art || {})[keyFor(dir)];
-    return record && record.hero && onDisk(record.hero) ? record.hero : null;
-  } catch { return null; }
-}
-// The scanner speaks in the name of the DLL it hooks, where "dxgi" covers both
-// DirectX 11 and 12; the community database speaks in the names people use. The
-// label is the only place the two are told apart, so the label decides. What it
-// cannot decide - DirectX 10, bare DXGI, an executable that named no renderer -
-// is left for the person to choose rather than guessed at.
-function communityApi(chosen) {
-  const label = String(chosen?.apiLabel || '');
-  if (/11\/12/.test(label)) return null;
-  if (/DirectX 12/i.test(label)) return 'dx12';
-  if (/DirectX 11/i.test(label)) return 'dx11';
-  if (/DirectX 9/i.test(label)) return 'dx9';
-  if (/DirectX 8/i.test(label)) return 'dx8';
-  if (/Vulkan/i.test(label)) return 'vulkan';
-  if (/OpenGL/i.test(label)) return 'opengl';
-  return null;
-}
-
-
-// ---------------------------------------------------------------- notices
-// A reply under your result, your name in a sentence, or a comment on a game
-// you follow. The server keeps the rows; this asks for the ones above the last
-// id it saw, so an app closed all week is told once rather than a hundred
-// times. The wording is the renderer's job - the community feature speaks the
-// two languages its own page does, not the thirty-eight the installer needs.
-const NOTICE_EVERY = 60_000;
-let noticeTimer = null;
-let noticeBusy = false;
-
-// #358: a fresh install polled the notice endpoint eight seconds after
-// launch, before anyone had opened Community at all. The first visit to the
-// page is the opt-in; until then this app talks to no server of ours.
-const communityUsed = () => loadState().communityUsed === true;
-function markCommunityUsed() {
-  if (communityUsed()) return;
-  const state = loadState();
-  state.communityUsed = true;
-  saveState(state);
-  startNotices();
-}
-const noticesOn = () => loadState().communityNotices !== false && communityUsed();
-
-async function pollNotices() {
-  if (noticeBusy || !noticesOn() || !win || win.isDestroyed()) return;
-  noticeBusy = true;
-  try {
-    // The very first look only learns where the line is. Nobody wants to be
-    // greeted by every notification they have ever earned.
-    if (await community().noticeCatchUp()) return;
-    const answer = await community().notices();
-    const fresh = (answer && answer.notices || []).filter(notice => !notice.read);
-    if (fresh.length && win && !win.isDestroyed()) win.webContents.send('community-notices', fresh);
-  } catch { /* offline, or the service is down: try again next minute */ }
-  finally { noticeBusy = false; }
-}
-
-function startNotices() {
-  if (noticeTimer) clearInterval(noticeTimer);
-  noticeTimer = setInterval(() => { pollNotices(); }, NOTICE_EVERY);
-  setTimeout(() => { pollNotices(); }, 8000);
-}
-
-// Shown only after the page has said what they should say, and marked read
-// only after they have actually been shown - a crash in between should repeat
-// a notification, never swallow it.
-ipcMain.handle('community-notify', (_event, items) => {
-  if (!Array.isArray(items) || !Notification.isSupported() || !noticesOn()) return { ok: false };
-  for (const item of items.slice(0, 4)) {
-    const popup = new Notification({
-      title: String(item?.title || '').slice(0, 120),
-      body: String(item?.body || '').slice(0, 240)
-    });
-    popup.on('click', () => {
-      if (!win || win.isDestroyed()) return;
-      if (win.isMinimized()) win.restore();
-      win.show();
-      win.focus();
-      win.webContents.send('community-open', item);
-    });
-    popup.show();
-  }
-  return { ok: true };
-});
-
-ipcMain.handle('community-notices-read', () => communityAnswer(async () => ({
-  result: await community().readNotices()
-})));
-ipcMain.handle('community-notice-settings', (_event, on) => {
-  const state = loadState();
-  if (typeof on === 'boolean') { state.communityNotices = on; saveState(state); }
-  return { ok: true, on: state.communityNotices !== false };
-});
-ipcMain.handle('community-follow', (_event, key, on) => communityAnswer(async () => ({
-  result: await community().follow(String(key || ''), on !== false)
-})));
-ipcMain.handle('community-notices', () => communityAnswer(async () => ({
-  result: await community().notices()
-})));
-ipcMain.handle('community-edit-reply', (_event, id, body) => communityAnswer(async () => ({
-  result: await community().editReply(id, typeof body === 'string' ? body : '')
-})));
-
-ipcMain.handle('community-prefill', async (_event, dir) => {
-  if (typeof dir !== 'string' || !path.isAbsolute(dir)) return { ok: false, error: 'bad_game' };
-  const game = lastGames.find(row => keyFor(row.dir) === keyFor(dir));
-  if (!game) return { ok: false, error: 'bad_game' };
-  return communityAnswer(async () => {
-    const scan = await scanGame(dir);
-    // The API the person actually installed against: their own override when
-    // they set one, detection otherwise.
-    const target = scan.chosen
-      ? renderingApi.effective(scan.chosen, apiPreference(loadState(), dir, scan.chosen.path))
-      : null;
-    const gpus = await guards.gpuInfo().catch(() => null);
-    const gpu = Array.isArray(gpus) && gpus[0] ? gpus[0] : {};
-    const route = scan.install?.route === 'native' ? 'renodx' : (scan.install?.route || null);
-    const store = ({ Steam: 'steam', 'Epic Games': 'epic', GOG: 'gog', Xbox: 'xbox', Ubisoft: 'ubisoft' })[game.launcher] || null;
-    return { prefill: {
-      title: game.name, poster: game.poster?.url || game.poster || null,
-      // The wide banner was fetched with the poster when the library filled in,
-      // so the report header can have it without asking the network again - and
-      // a game found in a folder has no store id to look one up with anyway.
-      hero: heroFor(dir),
-      // The colour of the two pictures this dialog is about to show. Without
-      // this it fell back to a hash of the title, which is why a red game came
-      // out green.
-      palette: paletteOfAll(heroFor(dir), game.poster?.url || game.poster || null),
-      kicker: kickerFor(dir, game),
-      game: { store, storeId: store && game.storeId ? game.storeId : null, title: game.name,
-        exe: scan.chosen?.rel ? path.basename(scan.chosen.rel) : null },
-      route: ['feeder', 'renodx', 'optiscaler'].includes(route) ? route : null,
-      api: communityApi(target),
-      gpu: gpu.name || null, driver: gpu.driver || null,
-      cpu: os.cpus()?.[0]?.model || null,
-      os: `${process.platform} ${os.release()}`, app: app.getVersion()
-    } };
-  });
-});
-
 ipcMain.handle('set-safe-graphics', (_event, enabled) => {
   const state = loadState();
   state.safeGraphics = enabled === true;
@@ -1257,8 +902,7 @@ ipcMain.handle('library', () => {
       launcher: g.launcher,
       // Steam records the app id, so its games never need a name search.
       appid: g.launcher === 'Steam' ? g.id : null,
-      // Every store's own id, for the community report. It was read from
-      // game.id, which this row never had, so no report ever carried one.
+      // Every store's own id, alongside the Steam app id above.
       storeId: g.id ? String(g.id) : null,
       name: g.name,
       dir: g.dir,
@@ -1658,15 +1302,6 @@ ipcMain.handle('addon-remove', (_event, file) => {
 
 ipcMain.handle('art-status', () => ({ available: art.available() }));
 
-ipcMain.handle('community-palette', (_event, pixels) => {
-  if (!Array.isArray(pixels) || pixels.length !== 12 * 12 * 4 ||
-      pixels.some(value => !Number.isInteger(value) || value < 0 || value > 255)) return null;
-  return paletteFromPixels(Uint8Array.from(pixels), 'rgba');
-});
-
-ipcMain.handle('community-palette-merge', (_event, palettes) =>
-  mergePalettes(Array.isArray(palettes) ? palettes.slice(0, 2) : []));
-
 // Bumped whenever the art picked for a game could change, so folders cached
 // under the old rule fetch again instead of keeping a bad banner forever.
 // 5: the store's own header URL is now preferred over the hand-built path,
@@ -1677,89 +1312,6 @@ const ART_RULES = 5;
 // A record with neither shape is not artwork, it is a failed download that got
 // written down. Returning it would stop every later launch from trying again.
 const usableArt = (record) => Boolean(record && (record.none || record.cover || record.hero));
-
-// A community card is a game somebody else has, so there is no folder to key
-// its artwork by - but a card keyed "steam:<appid>" carries the appid itself,
-// which is the best lookup there is. Everything else falls back to the title.
-//
-// The image is downloaded here and handed over as a file:// URL, because the
-// renderer's policy allows no remote images at all - and should not.
-const onDisk = url => {
-  if (typeof url !== 'string' || !url.startsWith('file:')) return false;
-  try { return fs.existsSync(fileURLToPath(url)); } catch { return false; }
-};
-// The colour a card is lit by. Electron already decodes every picture format
-// the art comes in, so the image is shrunk to a thumbnail and read from that -
-// twelve by twelve is enough to say what a poster is mostly made of, and small
-// enough that doing it is free.
-function paletteOf(fileUrl) {
-  if (!fileUrl) return null;
-  try {
-    const image = nativeImage.createFromPath(fileURLToPath(fileUrl));
-    if (image.isEmpty()) return null;
-    const small = image.resize({ width: 12, height: 12, quality: 'good' });
-    return paletteFromPixels(small.toBitmap(), 'bgra');
-  } catch { return null; }
-}
-
-// The banner and the poster are both on screen, so both decide.
-const paletteOfAll = (...files) => mergePalettes(files.map(paletteOf));
-
-ipcMain.handle('community-art', async (_event, key, title) => {
-  if (typeof key !== 'string' || !/^[a-z]+:[A-Za-z0-9._-]{1,64}$/.test(key)) return { none: true };
-  if (!communityUsed()) return { none: true };
-  const state = loadState();
-  const cacheKey = `community-w-${crypto.createHash('sha256').update(key).digest('hex').slice(0, 24)}`;
-  // A remembered picture is only worth serving while the file is still there.
-  // Antivirus quarantine, a cleanup tool or a cleared profile all take these
-  // away, and a record pointing at a missing file renders as a broken image
-  // forever - the cache has to notice rather than insist.
-  const cached = state.art && state.art[cacheKey];
-  if (cached && (cached.none || onDisk(cached.cover))) {
-    if (cached.none || cached.palette !== undefined) return cached;
-    // Remembered before there was such a thing as a palette: read one now
-    // rather than leaving the card grey until the art is downloaded again.
-    cached.palette = paletteOfAll(cached.cover, cached.poster);
-    saveState(state);
-    return cached;
-  }
-
-  const [kind, id] = key.split(':');
-  try {
-    const hit = await art.look(String(title || '').slice(0, 120), kind === 'steam' ? id : null);
-    if (!hit) {
-      // Remember the miss too: a game with no art must not be looked up again
-      // on every visit to the page.
-      state.art = state.art || {};
-      state.art[cacheKey] = { none: true, fetchedAt: Date.now() };
-      saveState(state);
-      return { none: true };
-    }
-    const dest = path.join(app.getPath('userData'), 'art');
-    // The card is landscape, so this wants the wide art. The tall 600x900
-    // poster would be cropped to a band across the middle of the picture.
-    let cover = null;
-    for (const url of [hit.heroUrl, hit.heroFallbackUrl, hit.coverUrl]) {
-      if (!url) continue;
-      try { cover = pathToFileURL(await art.download(url, path.join(dest, cacheKey + '-wide.jpg'))).href; break; }
-      catch { /* try the next shape */ }
-    }
-    // The opened card shows both: the wide art behind its header, and the tall
-    // poster beside the title the way a store page does.
-    let poster = null;
-    try { poster = pathToFileURL(await art.download(hit.coverUrl, path.join(dest, cacheKey + '-tall.jpg'))).href; }
-    catch { poster = null; }
-    // The wide art is what the header shows, so it decides; the poster is
-    // the fallback for a game whose banner is a black-and-white logo.
-    const record = { cover, poster, palette: paletteOfAll(cover, poster), fetchedAt: Date.now() };
-    state.art = state.art || {};
-    state.art[cacheKey] = record;
-    saveState(state);
-    return record;
-  } catch {
-    return { none: true };
-  }
-});
 
 ipcMain.handle('art-fetch', async (_event, dir, name, appid) => {
   const state = loadState();

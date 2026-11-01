@@ -92,7 +92,7 @@ app.whenReady().then(async () => {
 
   // Settings: the switch, the three ways to update and the check button.
   // show('settings') renders the panel itself - calling renderSettings() as
-  // well would race two renders and paint the community section twice.
+  // well would race two renders and paint the settings section twice.
   await run(`show('settings')`);
   await settle(120);
   assert.equal(await run(`$('setAntiCheat').getAttribute('aria-checked')`), 'true');

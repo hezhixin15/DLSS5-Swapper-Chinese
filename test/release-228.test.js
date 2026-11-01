@@ -124,19 +124,6 @@ test('the overlay says which reason applies instead of blaming the route (#338)'
   assert.match(read('src', 'renderer', 'renderer.js'), /'overlayNotForRoute', 'multipassNext'/);
 });
 
-test('the card and My comments banners say "Show all reports"', () => {
-  const page = read('src', 'renderer', 'community.js');
-  assert.match(page, /id="communityGpuClear">\$\{esc\(text\(\)\.showAllReports\)\}/);
-  assert.match(page, /id="communityMineClear">\$\{esc\(text\(\)\.showAllReports\)\}/);
-  assert.equal((page.match(/showAllReports: '/g) || []).length, 2, 'in English and Arabic');
-});
-
-test('every report inside a card names its DirectX version (#337)', () => {
-  const page = read('src', 'renderer', 'community.js');
-  assert.match(page, /\$\{comment\.api \? `<span class="community-api-tag">\$\{esc\(String\(comment\.api\)\.toUpperCase\(\)\)\}<\/span>` : ''\}/);
-  assert.match(read('src', 'renderer', 'style.css'), /\.community-tags \.community-api-tag \{/);
-});
-
 const noReShade = { installed: false, file: null, kind: null, version: null, addonSupport: false };
 
 test('ReShade can go in as d3d11.dll, and Restore takes it away (#328)', async (t) => {
@@ -209,23 +196,6 @@ test('a wrong checksum is never retried', async () => {
     (error) => error.code === 'componentChecksum');
   assert.equal(calls, 1);
   fs.rmSync(dir, { recursive: true, force: true });
-});
-
-test('nothing is asked of our server before Community is opened (#358)', () => {
-  const main = read('main.js');
-  assert.match(main, /const communityUsed = \(\) => loadState\(\)\.communityUsed === true;/);
-  assert.match(main, /if \(communityUsed\(\)\) startNotices\(\);/);
-  assert.match(main, /communityNotices !== false && communityUsed\(\)/);
-  assert.match(main, /if \(!communityUsed\(\)\) return \{ ok: false, error: 'community_opt_in'/);
-  assert.match(main, /ipcMain\.handle\('community-opt-in'/);
-  assert.equal((main.match(/^\s*startNotices\(\);$/gm) || []).length, 1, 'called only from the opt-in');
-  assert.match(read('preload.js'), /communityOptedIn: \(\) => ipcRenderer\.invoke\('community-opted-in'\)/);
-  assert.match(read('src', 'renderer', 'community.js'), /render: async \(\.\.\.args\) => \{ await optIn\(\); return render\(\.\.\.args\); \}/);
-});
-
-test('a card closes when the dimmed area around it is clicked (#372)', () => {
-  assert.match(read('src', 'renderer', 'community.js'),
-    /addEventListener\('click', event => \{ if \(event\.target === \$\('communityCardDialog'\)\) closeCard\(\); \}\)/);
 });
 
 test('two builds of one game with the same executable name both stay (#355)', () => {
