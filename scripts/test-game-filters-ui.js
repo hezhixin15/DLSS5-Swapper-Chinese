@@ -232,13 +232,18 @@ app.whenReady().then(async () => {
   assert.equal(await run(`$('apiChoice').value`), 'auto', 'failed save does not claim the choice was saved');
   assert.equal(await run(`$('job').textContent.includes(t('errApiSave'))`), true);
   await run(`window.lab.testApiSaveFailure(false); window.lab.testDetectedApi({ api: 'dxgi', apiLabel: 'DirectX 12', bitness: 64 }); closeSheet(); applyLang('en'); show('about')`);
-  for (const value of ['github', 'zhGithub']) await run(`document.querySelector('[data-project="${value}"]').click()`);
-  assert.deepEqual(await run(`window.lab.testProjectLinks()`), ['github', 'zhGithub']);
+  for (const value of ['github', 'zhGithub', 'zhGitee']) await run(`document.querySelector('[data-project="${value}"]').click()`);
+  assert.deepEqual(await run(`window.lab.testProjectLinks()`), ['github', 'zhGithub', 'zhGitee']);
   assert.equal(await run(`$('projectLinkError').classList.contains('hidden')`), true);
   await run(`window.lab.testProjectLinkFailure(true); document.querySelector('[data-project="zhGithub"]').click()`);
   assert.equal(await run(`$('projectLinkError').classList.contains('hidden')`), false);
   await run(`window.lab.testProjectLinkFailure(false); document.querySelector('[data-project="zhGithub"]').click(); new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
   fs.writeFileSync(path.join(output, 'about-links-en.png'), (await win.webContents.capturePage()).toPNG());
+  // The Chinese edition is offered from both repositories, each by name.
+  await run(`applyLang('zh'); show('about'); new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
+  assert.match(await run(`document.querySelector('[data-project="zhGithub"]').textContent`), /前往中文增强版 GitHub 仓库/);
+  assert.match(await run(`document.querySelector('[data-project="zhGitee"]').textContent`), /前往中文增强版 Gitee 仓库/);
+  fs.writeFileSync(path.join(output, 'about-links-zh.png'), (await win.webContents.capturePage()).toPNG());
 
   // The backend selector is opt-in: changing the control must not install.
   await run(`applyLang('en'); show('games'); openSheet(state.games[0].dir)`);

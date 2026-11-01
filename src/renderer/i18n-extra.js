@@ -41,7 +41,7 @@ add({ code: 'zh-TW', label: 'Chinese (Traditional)', native: '繁體中文', dir
   updateNoAssetSource: (name) => `${name} 上沒有此版本的安裝包，請點下方對應的按鈕手動下載。`,
   updateCheckFailedShort: '更新偵測失敗', updateUpToDate: (version) => `已是最新版本（v${version}）`,
   checkUpdate: '檢查更新', getLatest: '手動檢查最新版本', manualCheckHint: '立即檢查一次最新版本。',
-  aboutOriginal: '原始專案', aboutZh: '中文增強版',
+  aboutOriginal: '原始專案', aboutZhGithub: '前往中文增強版 GitHub 倉庫', aboutZhGitee: '前往中文增強版 Gitee 倉庫',
   aboutLicense: '本中文增強版依個人授權條款發布：不可用於商業用途，且必須標註中文增強版作者 hezhixin15。',
   setUpdateCheck: '啟動時自動偵測更新', setUpdateCheckHint: '每次啟動向 GitHub 查詢一次新版本。關閉後程式不再連網偵測。',
   setAntiCheatChannel: '名單更新管道', setAntiCheatChannelHint: '從哪個管道取得反作弊名單更新。',
