@@ -1,30 +1,59 @@
-# 反作弊游戏名单 —— 内置初版（随软件发布，可被远端更新整份替换）
-# 一行一个英文游戏名；# 开头是注释，空行忽略。
-# 命中规则：忽略大小写 / 空格 / 标点；完全相等，或一方是另一方前缀且双方 >= 8 个字符。
-# 同名不同代的游戏容易误判，这种情况下写 exe 名（例如 ModernWarfare）来精确命中。
-
-# Battlestate Games —— 内核反作弊 BE
+# 有反作弊的游戏：
 Escape from Tarkov
-
-# Riot Vanguard（内核级）
 VALORANT
-
-# HoYoProtect / mhyprot（内核级）
 Genshin Impact
 YuanShen
 Honkai: Star Rail
 StarRail
 Zenless Zone Zero
-
-# Ricochet（内核级，写 exe 名以免误伤 2009 年的 Modern Warfare 2）
+Grand Theft Auto V Enhanced
+Grand Theft Auto V
+Battlefield 6
+Ghost Recon Breakpoint
+PUBG
+Counter-Strike Global Offensive
+Apex Legends
+Tom Clancy's Rainbow Six Siege
+生死狙击2
+三角洲行动
+鸣潮
+原神
+崩坏星穹铁道
+绝区零
+Dead by Daylight
+FORZA HORIZON 6
+War Thunder
+WARDOGS
+FIFA
+Dota 2
+League of Legends
+无畏契约
+Rust
+永劫无间
+暗区突围：无限
+坦克世界
+战舰世界
+Roblox
+FIFA
+Fortnite
+Days to Die
+Hell Let Loose
+The First Descendant
+Insurgency: Sandstorm
+Hunt: Showdown
+The Outlast Trials
+ARK: Survival Evolved
+Unturned
+穿越火线
+逆战
+第五人格
+光遇
+王牌战争：文明重启
+暗黑破坏神 4
 cod
 ModernWarfare
 BlackOpsColdWar
 Vanguard
-
-# Valve VAC（Source 引擎）
 Left 4 Dead 2
-
-# 其他
 Arc Raiders
 War Dogs
