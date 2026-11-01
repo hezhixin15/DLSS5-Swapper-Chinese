@@ -1,6 +1,9 @@
 # DLSS 5 Swapper 中文增强版
 
 使用中文增强版遇到不懂的或者是使用问题可以去kook服务器上发信息：https://kook.vip/6pSyqG
+123云盘下载链接：https://1818284482.share.123pan.cn/123pan/hiJ3jv-xuTw
+gitee源码仓库：https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese.git
+
 ## 这是什么
 
 基于开源项目 [DLSS 5 Swapper](https://github.com/rakanki911/DLSS5-Swapper) 的中文增强版，为 NVIDIA DLSS 5（神经渲染）提供游戏/模拟器的一键安装与管理。
