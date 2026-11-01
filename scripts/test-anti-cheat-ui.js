@@ -161,6 +161,10 @@ app.whenReady().then(async () => {
   assert.equal(await run(`$('updateNoAsset').classList.contains('hidden')`), true,
     'a release with a signed manifest is not warned about');
   assert.equal(await run(`Boolean($('updateGitee'))`), false, 'Gitee is gone from the update dialog');
+  assert.equal(await run(`$('update123pan').textContent`), await run(`t('updateOpen123pan')`));
+  await run(`$('update123pan').click()`);
+  assert.deepEqual(await run(`window.lab.testProjectLinks()`), ['pan123'],
+    'the 123Pan button opens the shared folder through the allow list');
   await shot('update-dialog-github-only.png');
   await run(`$('updateNow').click()`);
   await settle();

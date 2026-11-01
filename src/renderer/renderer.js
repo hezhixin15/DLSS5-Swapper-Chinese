@@ -1176,6 +1176,7 @@ $('updateNow').onclick = () => {
   startUpdateDownload();
 };
 $('updateGithub').onclick = () => { window.lab.openProject('zhReleases').catch(() => {}); };
+$('update123pan').onclick = () => { window.lab.openProject('pan123').catch(() => {}); };
 $('updateSkip').onclick = async () => {
   if (pendingUpdate && pendingUpdate.latest) {
     try { await window.lab.skipUpdate(pendingUpdate.latest); } catch {}

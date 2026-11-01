@@ -71,8 +71,9 @@ test('Vulkan keeps identified DXVK proxies while unknown, wrong-bitness and Dire
   }
 });
 
-test('About links only open the project and its latest releases', () => {
+test('Only the allow-listed destinations can be opened', () => {
   assert.equal(projectUrl('github'), 'https://github.com/rakanki911/DLSS5-Swapper');
   assert.equal(projectUrl('releases'), 'https://github.com/rakanki911/DLSS5-Swapper/releases/latest');
+  assert.equal(projectUrl('pan123'), 'https://1818284482.share.123pan.cn/123pan/hiJ3jv-xuTw');
   for (const key of ['__proto__', 'constructor', 'file:///C:/Windows', 'javascript:alert(1)', 'https://example.com', null, {}]) assert.equal(projectUrl(key), null);
 });

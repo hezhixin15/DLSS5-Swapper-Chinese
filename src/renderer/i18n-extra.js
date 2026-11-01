@@ -35,7 +35,7 @@ add({ code: 'zh-TW', label: 'Chinese (Traditional)', native: '繁體中文', dir
   updateAvailable: (version) => `有新版本：v${version} ↗`, updateCheckFailed: () => '無法檢查更新——這並不代表「已是最新版本」。',
   updateTitle: '發現新版本', updateVersions: (from, to) => `${from} → ${to}`,
   updateNotes: '本次更新內容', updateNoNotes: '此版本未附更新說明。',
-  updateNow: '一鍵更新', updateOpenGithub: '前往 GitHub', updateSkipVersion: '跳過此版本', updateLater: '稍後提醒',
+  updateNow: '一鍵更新', updateOpenGithub: '前往 GitHub', updateOpen123pan: '前往123雲盤下載', updateSkipVersion: '跳過此版本', updateLater: '稍後提醒',
   updateDownloading: (percent) => `正在下載… ${percent}%`, updateVerifying: '正在校驗下載…', updateLaunching: '校驗通過，正在啟動安裝程式…',
   updateFailed: (reason) => `更新失敗：${reason}`, updateNoAsset: '此版本沒有簽名清單，無法校驗更新。請點下方按鈕手動下載。',
   updateNoAssetSource: (name) => `${name} 上沒有此版本的安裝包，請點下方對應的按鈕手動下載。`,
