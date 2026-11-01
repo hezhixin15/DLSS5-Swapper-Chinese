@@ -369,10 +369,6 @@
               <div class="gp-dots">${shots.map((one, index) => `<i class="${index ? '' : 'on'}" data-shot="${index}"></i>`).join('')}</div>
               <button class="gp-arrow" data-step="1" aria-label="${esc(t('t2Move'))}">${icon(ICONS.next, 14)}</button>
             </div>` : ''}
-            <div class="gp-signal" id="gpSignal">
-              <span class="gp-signal-dot"></span>${esc(t('t2Signal'))}
-              ${art && art.rating ? `<span class="gp-signal-sep"></span>${icon(ICONS.star, 13)}${esc(String(art.rating))}/100` : ''}
-            </div>
           </div>
         </header>
 
@@ -417,7 +413,6 @@
                 <span class="gp-head-icon">${icon(ICONS.clock, 16)}</span>
                 <h2>${esc(t('sheetActivity'))}</h2>
                 <div class="gp-acts">
-                  <button class="gp-act accent" id="shareResult">${window.communityUi?.reportFor?.(dir) ? t('menuCommunityEdit') : t('menuCommunity')}</button>
                   <button class="gp-act" id="copyJob"${jobLines.length ? '' : ' disabled'}>${icon(ICONS.copy, 14)}${t('copyLog')}</button>
                   <button class="gp-act" id="saveDiag">${icon(ICONS.download, 14)}${t('saveDiagnostics')}</button>
                 </div>
@@ -464,8 +459,6 @@
                   </button>`).join('')}
               </div>
             </section>` : ''}
-
-            <div class="gp-community" id="sheetCommunity" hidden></div>
           </aside>
         </div>
       </div>`;
@@ -514,17 +507,6 @@
       }
     }
 
-    // The community answer arrives after the page does; the mark in the
-    // masthead follows whatever it says.
-    const box = q('#sheetCommunity'), signal = q('#gpSignal');
-    if (box && signal) {
-      const follow = () => {
-        const status = box.querySelector('.sheet-community-status');
-        signal.dataset.state = status ? [...status.classList].find((one) => one !== 'sheet-community-status') || '' : '';
-      };
-      new MutationObserver(follow).observe(box, { childList: true, subtree: true });
-      follow();
-    }
     // The page keeps the drawing's own neutral ground; the artwork colours the
     // masthead and nothing else.
   }

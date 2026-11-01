@@ -71,7 +71,6 @@ function syncSkinChrome() {
 }
 
 function show(view) {
-  if (view !== 'chat') window.chatUi?.stopPolling?.();
   // Theme 2 opens a game as a full page inside the content area rather than
   // over the app, so the nav is still reachable behind it.
   if (sheetGame && !jobRunning && document.documentElement.dataset.skin === 'two') closeSheet();
@@ -81,8 +80,6 @@ function show(view) {
   if (view === 'settings') renderSettings();
   if (view === 'addons') renderAddons();
   if (view === 'overlays') window.overlayLab.render();
-  if (view === 'community') window.communityUi.render();
-  if (view === 'chat') window.chatUi?.render?.();
 }
 
 for (const link of document.querySelectorAll('[data-project]')) {
@@ -467,13 +464,6 @@ async function renderSettings() {
         aria-checked="${info.groupGamesByStore !== false}" aria-label="${t('setGroupGames')}" aria-describedby="setGroupGamesHint">
         <span class="knob"></span>
       </button></div>
-    <div class="set-row"><div><div class="k">${t('setNotices')}</div>
-      <div class="v" id="setNoticesHint">${t('setNoticesHint')}</div></div>
-      <button class="setting-switch" id="setNotices" type="button" role="switch"
-        aria-checked="${(await window.lab.communityNoticeSettings()).on ? 'true' : 'false'}"
-        aria-label="${t('setNotices')}" aria-describedby="setNoticesHint">
-        <span class="knob"></span>
-      </button></div>
     <div class="set-row"><div><div class="k">${t('setSafeGraphics')}</div>
       <div class="v" id="setSafeGraphicsHint">${t('setSafeGraphicsHint')}</div></div>
       <button class="setting-switch" id="setSafeGraphics" type="button" role="switch"
@@ -567,17 +557,6 @@ async function renderSettings() {
       <button class="ghost sm" id="setReset">${t('setReset')}</button></div>
     <div class="set-row"><div><div class="k">${t('setPosters')}</div><div class="v">${esc(info.posterDir)}</div></div>
       <span class="d">${t('setSaved', info.posterCount)}</span></div>`;
-  // Turning these off stops the asking as well as the showing: the poll in
-  // the main process reads the same setting.
-  $('setNotices').onclick = async () => {
-    const toggle = $('setNotices');
-    const on = toggle.getAttribute('aria-checked') !== 'true';
-    toggle.disabled = true;
-    try {
-      const answer = await window.lab.communityNoticeSettings(on);
-      toggle.setAttribute('aria-checked', String(answer.on));
-    } finally { toggle.disabled = false; }
-  };
   let swappingSkin = false;
   for (const button of document.querySelectorAll('[data-skin-choice]')) {
     button.onclick = async () => {
@@ -777,7 +756,6 @@ async function renderSettings() {
     }
   };
   $('setReset').onclick = async () => { await window.lab.reset(); load(); };
-  await window.communityUi.renderProfile($('settings'));
 }
 
 // ---------------- loading ----------------
@@ -1241,39 +1219,6 @@ function jobLog(line) {
   if ($('copyJob')) $('copyJob').disabled = jobLines.length === 0;
 }
 
-// The community dialog lives in another file and cannot reach in here; after
-// it files or deletes a report the sheet behind it is out of date.
-window.refreshSheet = dir => { if (sheetGame && sheetGame.dir === dir) openSheet(dir, true); };
-
-// "Before I install": what the community found for this game, in its sheet. It
-// asks by the same keys a report is filed under; an older server, or no
-// connection, leaves the space empty rather than saying something untrue.
-async function fillSheetCommunity(g, dir) {
-  const box = $('sheetCommunity');
-  if (!box) return;
-  // Before anybody has opened Community, this asks the server nothing (#358).
-  const opted = await window.lab.communityOptedIn().catch(() => null);
-  if (!opted?.on) return;
-  const answer = await window.lab.communityForGame(dir).catch(() => null);
-  if (sheetGame !== g || !answer?.ok || !answer.supported || !$('sheetCommunity')) return;
-  const card = answer.card;
-  const routes = card ? ['renodx', 'feeder', 'optiscaler'].filter((route) => card.verdicts?.[route]).map((route) => {
-    const v = card.verdicts[route];
-    const name = route === 'optiscaler' ? 'OptiScaler' : route === 'renodx' ? 'RenoDX' : 'Feeder';
-    return `<div class="sheet-community-route"><span>${esc(name)}</span><span class="g"><i></i>${v.green || 0}</span><span class="y"><i></i>${v.yellow || 0}</span><span class="r"><i></i>${v.red || 0}</span></div>`;
-  }).join('') : '';
-  const status = card ? ({ working: t('communityWorking'), mixed: t('communityMixed'), broken: t('communityBroken') }[card.status] || '') : '';
-  box.innerHTML = card
-    ? `<header><b>${esc(t('sheetCommunityTitle'))}</b>${status ? `<span class="sheet-community-status ${esc(card.status)}">${esc(status)}</span>` : ''}
-         <button class="ghost sm" id="sheetCommunityOpen" type="button">${esc(t('sheetCommunityOpen'))}</button></header>
-       ${routes ? `<div class="sheet-community-routes">${routes}</div>` : ''}
-       <p>${esc(t('sheetCommunityCounts', card.reports || 0, card.comments || 0))}</p>`
-    : `<header><b>${esc(t('sheetCommunityTitle'))}</b></header><p>${esc(t('sheetCommunityNone'))}</p>`;
-  box.hidden = false;
-  const open = $('sheetCommunityOpen');
-  if (open) open.onclick = () => { closeSheet(); show('community'); window.communityUi?.openCard?.(card.key); };
-}
-
 async function openSheet(dir, keepLog = false) {
   if (jobRunning) return;
   const g = state.games.find((x) => x.dir === dir);
@@ -1319,8 +1264,6 @@ async function openSheet(dir, keepLog = false) {
   const pick = chosenExe(d, dir);
   const inGameDlss = (d.currentDlss && d.currentDlss.version) || null;
   const showExeFact = d.exes.length < 2;
-  // Filled in once the sheet is on screen, so the sheet never waits on the network.
-  queueMicrotask(() => fillSheetCommunity(g, dir));
 
   // Theme 2 draws this page itself: same facts, same controls, same ids - a
   // different page rather than a different program.
@@ -1345,7 +1288,6 @@ async function openSheet(dir, keepLog = false) {
       ${info && info.summary ? `<p class="summary">${esc(info.summary.slice(0, 260))}${info.summary.length > 260 ? '…' : ''}</p>` : ''}
 
       ${exePicker(d, dir)}
-      <div class="sheet-community" id="sheetCommunity" hidden></div>
       ${installOptions(d, pick, dir)}
 
       <div class="specs" data-title="${esc(t('sheetFacts'))}">
@@ -1368,15 +1310,12 @@ async function openSheet(dir, keepLog = false) {
         <button class="btn-install" id="doInstall"${d.ok && pick && !pick.installIssue && routesFor(pick).length ? '' : ' disabled'}>${installLabel(d, pick, dir)}</button>
         <button class="btn-restore" id="doRestore"${d.hasBackup ? '' : ' disabled'}>${t('restore')}</button>
       </div>
-      <div class="job-toolbar"><button class="ghost sm ${window.communityUi?.reportFor?.(dir) ? 'shared' : 'accent'}" id="shareResult">${window.communityUi?.reportFor?.(dir) ? t('menuCommunityEdit') : t('menuCommunity')}</button><button class="ghost sm" id="copyJob"${jobLines.length ? '' : ' disabled'}>${t('copyLog')}</button><button class="ghost sm" id="saveDiag">${t('saveDiagnostics')}</button></div>
+      <div class="job-toolbar"><button class="ghost sm" id="copyJob"${jobLines.length ? '' : ' disabled'}>${t('copyLog')}</button><button class="ghost sm" id="saveDiag">${t('saveDiagnostics')}</button></div>
       <div class="job" id="job" role="status" aria-live="polite" data-title="${esc(t('sheetActivity'))}">${esc(jobLines.join('\n') || t('jobReady'))}</div>
     </div>`;
 
   if (modernSheet) window.theme2.wireSheet(sheetContext);
   $('sheetClose').onclick = closeSheet;
-  // The same thing the right-click menu offers, put where somebody who has
-  // just installed into a game is already looking.
-  $('shareResult').onclick = () => window.communityUi.openReport(sheetGame.dir);
   $('copyJob').onclick = () => copyText([sheetGame.name, sheetGame.dir, '', ...jobLines].join('\n'));
   // Everything an issue report needs, in one file, instead of four asked for
   // one at a time.
@@ -1608,9 +1547,6 @@ function applyLang(code) {
   if (view && view.id === 'view-settings') renderSettings();
   if (view && view.id === 'view-addons') renderAddons();
   if (view && view.id === 'view-overlays') window.overlayLab.render();
-  if (view && view.id === 'view-community') window.communityUi.render();
-  window.communityUi.applyLanguage();
-  window.chatUi?.applyLanguage?.();
   window.tutorialUi?.applyLanguage?.(state.lang);
   if (sheetGame) openSheet(sheetGame.dir, true);
 }
@@ -1721,7 +1657,7 @@ const cardActionsBusy = new Set();
 let contextMenuOpen = false;
 
 async function performGameAction(action, dir) {
-  if (!['details', 'open', 'copy', 'restore', 'scan', 'poster', 'community', 'communityRemove', 'hide'].includes(action)) return;
+  if (!['details', 'open', 'copy', 'restore', 'scan', 'poster', 'hide'].includes(action)) return;
   const game = state.games.find(g => g.dir === dir);
   if (!game) return;
   if (!['open', 'copy'].includes(action) && (jobRunning || cardActionsBusy.size)) return;
@@ -1754,14 +1690,6 @@ async function performGameAction(action, dir) {
         renderGames();
         renderRecent();
       }
-    } else if (action === 'community') {
-      await window.communityUi.openReport(dir);
-    } else if (action === 'communityRemove') {
-      if (await window.communityUi.removeReportFor(dir)) {
-        log(t('menuCommunityRemoved', game.name));
-        if (document.querySelector('.view.active')?.id === 'view-community') await window.communityUi.render();
-        if (sheetGame === game) await openSheet(dir);
-      }
     } else if (action === 'hide') {
       if (!await ask({
         icon: 'hide', title: t('hideTitle'), body: t('hideConfirm', game.name),
@@ -1790,14 +1718,10 @@ const MENU_ICON = {
   scan: '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/>',
   poster: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4"/>',
   restore: '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>',
-  community: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
-  communityRemove: '<path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/>',
   hide: '<path d="m3 3 18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.4 5.2A9.6 9.6 0 0 1 12 5c5 0 9 4.5 9 7a11 11 0 0 1-2.4 3.6M6.3 6.4A11.6 11.6 0 0 0 3 12c0 2.5 4 7 9 7a9.7 9.7 0 0 0 3.3-.6"/>'
 };
 // Order, and where a rule falls between groups.
-// The community line changes with what this install has already said about
-// the game: adding it, or correcting and taking back what was added.
-const MENU_ITEMS = [['details'], ['open', 'copy'], ['scan', 'poster', 'restore'], ['community', 'communityRemove'], ['hide']];
+const MENU_ITEMS = [['details'], ['open', 'copy'], ['scan', 'poster', 'restore'], ['hide']];
 
 // Two letters when a game has no art, so the head is never an empty square.
 const menuInitials = name => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -1815,14 +1739,9 @@ function showGameMenu(game, position, { busy = false } = {}) {
     const menu = $('gameMenu');
     const labels = {
       details: t('menuDetails'), open: t('menuOpen'), copy: t('menuCopyPath'), scan: t('menuScan'),
-      poster: t('menuPoster'), restore: t('restore'), community: t('menuCommunity'), hide: t('menuHide'),
-      communityRemove: t('menuCommunityRemove')
+      poster: t('menuPoster'), restore: t('restore'), hide: t('menuHide')
     };
-    const mine = window.communityUi?.reportFor?.(game.dir) || null;
-    if (mine) labels.community = t('menuCommunityEdit');
     const disabled = new Set(busy ? ['scan', 'poster', 'restore', 'hide'] : []);
-    // Nothing to delete until something has been filed.
-    const hidden = new Set(mine ? [] : ['communityRemove']);
 
     const art = game.poster && game.poster.url;
     menu.innerHTML = `
@@ -1830,7 +1749,7 @@ function showGameMenu(game, position, { busy = false } = {}) {
         <span class="ctx-art">${art ? `<img src="${esc(art)}" alt="">` : `<i>${esc(menuInitials(game.name))}</i>`}</span>
         <span class="ctx-name"><b>${esc(game.name)}</b>${game.summary ? `<small>${esc(game.summary)}</small>` : ''}</span>
       </div>
-      ${MENU_ITEMS.map(group => `<div class="ctx-group">${group.filter(id => !hidden.has(id)).map(id => `
+      ${MENU_ITEMS.map(group => `<div class="ctx-group">${group.map(id => `
         <button type="button" role="menuitem" data-menu="${id}"${disabled.has(id) ? ' disabled' : ''}>
           <svg viewBox="0 0 24 24" aria-hidden="true">${MENU_ICON[id]}</svg>
           <span>${esc(labels[id])}</span>
@@ -1875,9 +1794,6 @@ async function openGameMenu(card, position) {
   contextMenuOpen = true;
   const game = state.games.find(item => item.dir === dir);
   try {
-    // The admin may have permanently removed this install's report while the
-    // desktop was open. Reconcile before choosing Add versus Edit/Delete.
-    await window.communityUi?.syncOwnReports?.();
     const action = await showGameMenu(game, position, { busy: jobRunning || cardActionsBusy.size > 0 });
     // The native menu used to ask before a restore. It still gets asked.
     if (action === 'restore' && !await ask({

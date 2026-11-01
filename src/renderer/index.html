@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="overlay-lab.css" />
   <link rel="stylesheet" href="overlay-controls.css" />
-  <link rel="stylesheet" href="chat.css" />
   <link rel="stylesheet" href="tutorial.css" />
   <link rel="stylesheet" href="theme2.css" />
 </head>
@@ -26,14 +25,6 @@
         <button class="nav-item" data-view="games">
           <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="4"/><path d="M7 11v3m-1.5-1.5h3M16 12h.01M18.5 14h.01"/></svg>
           <span data-i18n="navGames">Games</span><i class="dot"></i>
-        </button>
-        <button class="nav-item" data-view="chat">
-          <svg viewBox="0 0 24 24"><path d="M5 5h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 3v-4.5A2 2 0 0 1 3 15V7a2 2 0 0 1 2-2z"/><path d="M7 10h10M7 14h6"/></svg>
-          <span id="navChat">Chat</span><i class="dot"></i><b class="chat-nav-unread hidden" id="chatNavUnread"></b>
-        </button>
-        <button class="nav-item" data-view="community">
-          <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.7M16 3.3a4 4 0 0 1 0 7.4"/></svg>
-          <span data-i18n="navCommunity">Community</span><i class="dot"></i>
         </button>
         <button class="nav-item" data-view="addons">
           <svg viewBox="0 0 24 24"><path d="M10 4.5a1.9 1.9 0 1 1 3.8 0V6H17a1 1 0 0 1 1 1v3.2h1.5a1.9 1.9 0 1 1 0 3.8H18V17a1 1 0 0 1-1 1h-3.2v1.5a1.9 1.9 0 1 1-3.8 0V18H7a1 1 0 0 1-1-1v-3.2H4.5a1.9 1.9 0 1 1 0-3.8H6V7a1 1 0 0 1 1-1h3z"/></svg>
@@ -118,75 +109,6 @@
           </div>
         </div>
         <div class="glass log" id="log"></div>
-      </section>
-
-      <!-- COMMUNITY -->
-      <section class="view chat-view" id="view-chat">
-        <div class="chat-shell">
-          <header class="chat-head">
-            <div>
-              <div class="chat-title-line"><h3 id="chatTitle">Community chat</h3><span class="chat-live"><i></i> LIVE</span></div>
-              <p id="chatSubtitle">Share results, screenshots and game discoveries with everyone.</p>
-            </div>
-            <div class="chat-head-actions">
-              <span class="chat-retention" id="chatRetention">Images expire after 24 hours</span>
-              <button class="ghost sm" id="chatRefresh" type="button">Refresh</button>
-            </div>
-          </header>
-          <main class="chat-room" id="chatRoom">
-            <button class="chat-older" id="chatOlder" type="button">Load earlier messages</button>
-            <div class="chat-empty hidden" id="chatEmpty"><i>💬</i><b>Start the conversation</b><span>Share a tip, screenshot, or game card.</span></div>
-            <div class="chat-messages" id="chatMessages" aria-live="polite"></div>
-            <button class="chat-new hidden" id="chatNew" type="button">New messages ↓</button>
-          </main>
-          <footer class="chat-composer-wrap" id="chatDropZone">
-            <div class="chat-reply-preview hidden" id="chatReplyPreview"></div>
-            <div class="chat-attachment-strip hidden" id="chatAttachments"></div>
-            <div class="chat-composer">
-              <button class="chat-plus" id="chatPlus" type="button" aria-label="Attach">+</button>
-              <div class="chat-input-wrap">
-                <textarea id="chatInput" rows="1" maxlength="2000" placeholder="Message the community…"></textarea>
-                <div class="mention-menu hidden" id="chatMentions"></div>
-                <span class="chat-limit" id="chatLimit">0/2000</span>
-              </div>
-              <button class="chat-send" id="chatSend" type="button" aria-label="Send">
-                <svg viewBox="0 0 24 24"><path d="m3 11 17-8-7 18-2-7zM11 14l9-11"/></svg>
-              </button>
-            </div>
-            <p class="chat-compose-hint" id="chatComposeHint">Enter to send · Shift+Enter for a new line · paste or drop images</p>
-          </footer>
-          <input id="chatFile" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
-        </div>
-      </section>
-
-      <!-- COMMUNITY -->
-      <section class="view" id="view-community">
-        <div class="section-head community-heading">
-          <!-- The badge is a sibling of the title, not inside it: the title's
-               text is replaced wholesale when the language changes. -->
-          <div><div class="community-title-row"><h3 id="communityTitle">Community-tested games</h3><span class="beta-tag" title="This feature is new and still being tested">BETA</span></div><p class="hint" id="communitySubtitle">Real results from DLSS 5 Swapper users.</p></div>
-          <div class="community-heading-actions">
-            <button class="glass-btn sm" id="communityRefresh">Refresh</button>
-            <span class="community-game-total" id="communityGameTotal" role="status" aria-live="polite">— games</span>
-          </div>
-        </div>
-        <div class="community-filters" role="search" aria-labelledby="communityTitle">
-          <label><span id="communitySearchLabel">Search games</span><input id="communitySearch" type="search" autocomplete="off" spellcheck="false"></label>
-          <label><span id="communityRouteLabel">Route</span><select id="communityRoute"><option value="all">All routes</option><option value="feeder">Feeder</option><option value="renodx">RenoDX</option><option value="optiscaler">OptiScaler</option></select></label>
-          <label><span id="communityApiLabel">Rendering API</span><select id="communityApi"><option value="all">All APIs</option><option value="dx12">DX12</option><option value="dx11">DX11</option><option value="dx9">DX9</option><option value="dx8">DX8</option><option value="vulkan">Vulkan</option><option value="opengl">OpenGL</option></select></label>
-          <label><span id="communityStatusLabel">Result</span><select id="communityStatus"><option value="all">All results</option><option value="working">Working</option><option value="mixed">Mixed</option><option value="broken">Not working</option></select></label>
-          <label id="communityGpuField" hidden><span id="communityGpuLabel">Graphics card</span><select id="communityGpu"><option value="all">All graphics cards</option></select></label>
-          <label id="communitySortField" hidden><span id="communitySortLabel">Sort</span><select id="communitySort"><option value="recent">Most recent</option><option value="reports">Most reports</option><option value="title">A–Z</option></select></label>
-          <button class="ghost sm" id="communityClear">Clear filters</button>
-        </div>
-        <div class="community-scope" id="communityScope" role="group" hidden>
-          <button type="button" data-scope="all" class="on" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3.5 19c.8-3 3-4.6 5.5-4.6s4.7 1.6 5.5 4.6M15 15c.6-.4 1.3-.6 2-.6 2 0 3.3 1.2 3.9 3.5"/></svg><span id="communityScopeAll">Everyone</span></button>
-          <button type="button" data-scope="mine" id="communityScopeMineBtn" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span id="communityScopeMine">My games</span></button>
-          <button type="button" data-scope="reports" id="communityScopeReportsBtn" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6.5A8 8 0 0 1 11 4h2a8 8 0 0 1 8 8z"/><path d="M8 11h8M8 15h5"/></svg><span id="communityScopeReports">My comments</span></button>
-        </div>
-        <p id="communityNotice" class="community-notice" role="status" aria-live="polite"></p>
-        <div id="communityCards" class="community-grid"></div>
-        <section id="communityUnreported" class="community-unreported" hidden></section>
       </section>
 
       <!-- GAMES -->
@@ -332,57 +254,6 @@
   <div class="overlay hidden" id="overlay">
     <div class="sheet" id="sheet"></div>
   </div>
-  <dialog id="communityCardDialog" class="community-dialog">
-    <div class="community-card-head" id="communityCardHead"></div>
-    <!-- Following a game is what turns other people's comments on it into
-         something worth interrupting you for. Off unless asked for. -->
-    <button class="community-follow" id="communityFollow" type="button" aria-pressed="false">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-    </button>
-    <button class="community-close" id="communityCardClose" aria-label="Close">✕</button>
-    <div id="communityCardBody"></div>
-  </dialog>
-  <dialog id="communityReportDialog" class="community-dialog community-report-dialog">
-    <div class="community-card-head" id="communityReportHead"></div>
-    <button class="community-close" id="communityReportClose" aria-label="Close">✕</button>
-    <form id="communityReportForm" class="community-report-body">
-      <div class="community-report-grid">
-        <label><span id="communityReportRouteLabel" data-icon="route">Route used</span><select id="communityReportRoute" required><option value="">Choose…</option><option value="feeder">Feeder</option><option value="renodx">RenoDX</option><option value="optiscaler">OptiScaler</option></select></label>
-        <label><span id="communityReportApiLabel" data-icon="api">Rendering API</span><select id="communityReportApi"><option value="">Choose…</option><option value="dx12">DX12</option><option value="dx11">DX11</option><option value="dx9">DX9</option><option value="dx8">DX8</option><option value="vulkan">Vulkan</option><option value="opengl">OpenGL</option></select></label>
-      </div>
-      <fieldset class="community-verdicts"><legend id="communityVerdictLabel" data-icon="result">Your result</legend><button type="button" data-verdict="green"><b>Working</b><small>Game runs great</small></button><button type="button" data-verdict="yellow"><b>Works with issues</b><small>Minor or major issues</small></button><button type="button" data-verdict="red"><b>Not working</b><small>Doesn’t run or crashes</small></button></fieldset>
-      <label class="community-comment"><span id="communityCommentLabel" data-icon="comment">Optional comment</span><textarea id="communityReportComment" maxlength="1200" rows="4" placeholder="Write a comment about your experience, settings, or issues…"></textarea><span class="community-count" id="communityCommentCount">0/1200</span></label>
-      <div class="community-privacy"><b id="communityPrivacyTitle" data-icon="sent">Data that will be sent</b><div id="communityPrivacyData"></div></div>
-      <p id="communityReportError" class="community-error" role="status"></p>
-      <div class="community-submit-row"><span class="community-why" id="communityWhy">Your report helps improve compatibility for everyone.</span><button type="button" class="ghost" id="communityReportCancel">Cancel</button><button type="submit" class="glass-btn" id="communityReportSubmit">Submit report</button></div>
-    </form>
-  </dialog>
-
-  <dialog id="chatAttachDialog" class="chat-dialog">
-    <header><div><span class="chat-dialog-kicker">ADD TO MESSAGE</span><h3 id="chatAttachTitle">Share something</h3></div><button class="chat-dialog-close" data-chat-close="chatAttachDialog" type="button">✕</button></header>
-    <div class="chat-attach-actions">
-      <button id="chatChoosePhotos" type="button"><i>▧</i><b>Photos</b><span>Up to 4 images</span></button>
-      <button id="chatChooseGame" type="button"><i>◇</i><b>Game card</b><span>Search community results</span></button>
-    </div>
-    <div class="chat-game-picker hidden" id="chatGamePicker">
-      <label><span id="chatGameSearchLabel">Find a game</span><input id="chatGameSearch" type="search" autocomplete="off" placeholder="Type a game name…"></label>
-      <div id="chatGameResults" class="chat-game-results"></div>
-    </div>
-  </dialog>
-
-  <dialog id="chatViewer" class="chat-viewer">
-    <div class="chat-viewer-stage" id="chatViewerStage">
-      <img id="chatViewerImage" alt="Chat attachment">
-    </div>
-    <div class="chat-viewer-top"><span id="chatViewerCount"></span><span id="chatViewerLabel"></span></div>
-    <button class="chat-viewer-close" id="chatViewerClose" type="button">✕</button>
-    <button class="chat-viewer-nav prev" id="chatViewerPrev" type="button">‹</button>
-    <button class="chat-viewer-nav next" id="chatViewerNext" type="button">›</button>
-    <div class="chat-viewer-tools"><button id="chatZoomOut" type="button">−</button><span id="chatZoomValue">100%</span><button id="chatZoomIn" type="button">+</button><button id="chatZoomReset" type="button">Fit</button></div>
-  </dialog>
-
-  <div class="chat-context hidden" id="chatContext" role="menu" popover="manual"></div>
-  <div class="chat-label-menu hidden" id="chatLabelMenu" role="menu" popover="manual"></div>
   <div id="gameMenu" class="ctx-menu hidden" role="menu" aria-hidden="true"></div>
   <div id="copyFeedback" class="copy-feedback hidden" role="status" aria-live="polite"></div>
 
@@ -411,13 +282,9 @@
   <script src="i18n-extra.js"></script>
   <script src="../shared/feature-i18n.js"></script>
   <script src="game-filters.js"></script>
-  <script src="mentions.js"></script>
   <script src="ask.js"></script>
-  <script src="cheer.js"></script>
   <script src="../shared/install-routes.js"></script>
   <script src="../shared/rendering-api.js"></script>
-  <script src="community.js"></script>
-  <script src="chat.js"></script>
   <script src="tutorial-copy.js"></script>
   <script src="tutorial.js"></script>
   <script src="renderer.js"></script>

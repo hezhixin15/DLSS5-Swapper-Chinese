@@ -65,16 +65,6 @@ test('a card with no verdict has a word for that', () => {
   }
 });
 
-test('the BETA badge is a sibling of the title, not inside it', () => {
-  // applyLanguage() replaces the title's textContent wholesale; a badge placed
-  // inside would vanish the first time the language changed.
-  const html = fs.readFileSync(path.join(__dirname, '../src/renderer/index.html'), 'utf8');
-  const title = html.match(/<h3 id="communityTitle">[^<]*<\/h3>/);
-  assert.ok(title, 'the community title element moved');
-  assert.doesNotMatch(title[0], /beta-tag/i, 'the badge would be erased on a language change');
-  assert.match(html, /class="beta-tag"/, 'the community page carries a BETA badge');
-});
-
 test('a successful reply updates the cached card conversation total immediately', () => {
   assert.match(source, /bumpCardComments\(answer\.reply\?\.card \|\| state\.active\?\.key, 1\)/);
   assert.match(source, /bumpCardComments\(state\.active\?\.key, -1\)/);
@@ -88,11 +78,8 @@ test('the message menu joins the modal top layer instead of rendering behind it'
     'the menu must be visible before its size is used to clamp it to the window');
 });
 
-test('admin-deleted reports are reconciled before the library menu chooses its labels', () => {
-  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer/renderer.js'), 'utf8');
+test('admin-deleted reports are reconciled before the page repaints them', () => {
   assert.match(source, /async function syncOwnReports\(\)/);
   assert.match(source, /delete own\[key\]/);
   assert.match(source, /syncOwnReports\(\)\.catch\(\(\) => false\)/, 'community refresh also reconciles ownership');
-  assert.ok(renderer.indexOf('await window.communityUi?.syncOwnReports?.()') < renderer.indexOf('const action = await showGameMenu'),
-    'right-click must reconcile before rendering Add versus Edit/Delete');
 });

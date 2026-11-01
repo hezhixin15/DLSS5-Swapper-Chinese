@@ -53,21 +53,6 @@ test('the uninstaller says uninstalling does not restore games (#266)', () => {
   assert.match(script, /isUpdated/, 'and it stays out of the way of an update');
 });
 
-test('the community page carries its new controls, hidden until the server offers them', () => {
-  const html = read('src', 'renderer', 'index.html');
-  assert.match(html, /<label id="communityGpuField" hidden>/);
-  assert.match(html, /<label id="communitySortField" hidden>/);
-  assert.match(html, /id="communityScope" role="group" hidden/);
-  for (const scope of ['all', 'mine', 'reports']) assert.match(html, new RegExp(`data-scope="${scope}"`));
-  const page = read('src', 'renderer', 'community.js');
-  assert.match(page, /if \(!state\.features\.includes\('gpu'\)\) delete filters\.gpu;/);
-  assert.match(page, /scope === 'all' \? window\.lab\.communityCards\(filters\) : window\.lab\.communitySearch\(filters, scope\)/);
-  const preload = read('preload.js');
-  assert.match(preload, /communitySearch: \(filters, scope\) => ipcRenderer\.invoke\('community-search', filters, scope\)/);
-  assert.match(preload, /communityForGame: \(dir\) => ipcRenderer\.invoke\('community-for-game', dir\)/);
-  assert.match(preload, /communityGpus: \(\) => ipcRenderer\.invoke\('community-gpus'\)/);
-});
-
 // The "You" on the My games button: a second key called \`mine\` in the same
 // table silently replaced the first. One name, one meaning.
 test('no label on the community page is defined twice', () => {
@@ -80,14 +65,6 @@ test('no label on the community page is defined twice', () => {
     const twice = keys.filter((key, index) => keys.indexOf(key) !== index);
     assert.deepEqual([...new Set(twice)], [], lang);
   }
-});
-
-test('the game sheet shows what the community found, before installing', () => {
-  const renderer = read('src', 'renderer', 'renderer.js');
-  assert.match(renderer, /<div class="sheet-community" id="sheetCommunity" hidden><\/div>/);
-  assert.match(renderer, /queueMicrotask\(\(\) => fillSheetCommunity\(g, dir\)\);/);
-  assert.match(read('main.js'), /ipcMain\.handle\('community-for-game'/);
-  assert.equal((read('src', 'renderer', 'i18n.js').match(/sheetCommunityTitle: '/g) || []).length, 3, 'in English, Arabic and Chinese');
 });
 
 // Somebody names you in the chat, answers you there, or likes what you wrote:

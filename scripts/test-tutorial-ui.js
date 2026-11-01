@@ -188,7 +188,7 @@ app.whenReady().then(async () => {
     return typeof value === 'function' ? value(1, 2) : String(value);
   })()`);
   const named = ['setAutoScan', 'addFolder', 'addGame', 'navGames', 'navHistory', 'navAddons', 'navOverlay',
-    'navCommunity', 'navSettings', 'navAbout', 'install', 'restore', 'antiCheatWarningTitle', 'antiCheatContinue',
+    'navSettings', 'navAbout', 'install', 'restore', 'antiCheatWarningTitle', 'antiCheatContinue',
     'crashWarningTitle', 'notesTitle', 'setReopenTutorial', 'setReopenTutorialBtn'];
   for (const code of ['zh', 'zh-TW']) {
     const body = await guideText(code);

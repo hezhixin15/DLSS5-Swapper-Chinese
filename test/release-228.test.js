@@ -220,7 +220,6 @@ test('nothing is asked of our server before Community is opened (#358)', () => {
   assert.match(main, /ipcMain\.handle\('community-opt-in'/);
   assert.equal((main.match(/^\s*startNotices\(\);$/gm) || []).length, 1, 'called only from the opt-in');
   assert.match(read('preload.js'), /communityOptedIn: \(\) => ipcRenderer\.invoke\('community-opted-in'\)/);
-  assert.match(read('src', 'renderer', 'renderer.js'), /const opted = await window\.lab\.communityOptedIn\(\)/);
   assert.match(read('src', 'renderer', 'community.js'), /render: async \(\.\.\.args\) => \{ await optIn\(\); return render\(\.\.\.args\); \}/);
 });
 
