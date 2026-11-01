@@ -10,6 +10,7 @@ const extractZip = require('extract-zip');
 const { execFileSync } = require('child_process');
 const feederRelease = require('../src/core/feeder-release');
 const renodx = require('../src/core/renodx-release');
+const { verifyTree, formatReport } = require('../src/core/payload-lock');
 
 const ROOT = path.resolve(__dirname, '..');
 const PAYLOAD = path.join(ROOT, 'payload');
@@ -381,6 +382,28 @@ const total = fs
   .filter((f) => fs.statSync(f).isFile())
   .reduce((sum, f) => sum + fs.statSync(f).size, 0);
 console.log(`\nPayload ready: ${(total / 1048576).toFixed(1)} MB in ${path.relative(ROOT, PAYLOAD)}`);
+
+// What was collected must be exactly what payload.lock.json pins. A build that
+// would quietly ship a different DLL is the failure this check exists to stop.
+const lockFile = path.join(ROOT, 'payload.lock.json');
+let lock = null;
+try { lock = JSON.parse(fs.readFileSync(lockFile, 'utf8')); } catch { /* reported below */ }
+if (!lock || !lock.roots) {
+  console.error('\npayload.lock.json is missing or unreadable.');
+  console.error('Run npm run payload:lock, review the diff, and build again.');
+  process.exit(1);
+}
+let locked = true;
+for (const [name, root] of Object.entries(lock.roots)) {
+  const result = await verifyTree(path.join(ROOT, name), root.files);
+  console.log(formatReport(result, name));
+  if (!result.ok) locked = false;
+}
+if (!locked) {
+  console.error('\nThe collected payload does not match payload.lock.json.');
+  console.error('If the change is intended, run npm run payload:lock and review the diff.');
+  process.exit(1);
+}
 }
 
 main().catch((err) => {

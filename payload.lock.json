@@ -1,0 +1,327 @@
+{
+  "schema": 1,
+  "roots": {
+    "payload": {
+      "files": [
+        {
+          "path": "ReShade_Setup_6.8.0_Addon.exe",
+          "size": 4318424,
+          "sha256": "afe4c8f13048306307983b8b3d41d5bf00a86820440b0e57dea10950e1176445"
+        },
+        {
+          "path": "feeder/Verify-DLSS5Feeder.ps1",
+          "size": 102574,
+          "sha256": "2cdb0eac0f4f8ea9da8e6290c442f846074aae9b87750425e0d2da4a820d0aca"
+        },
+        {
+          "path": "feeder/dlss5-feed-host64.exe",
+          "size": 169472,
+          "sha256": "c835754277a0590780d846443f314a83a30e2d2815ee0b2f7c18f1a24f252936"
+        },
+        {
+          "path": "feeder/dlss5-feed.addon32",
+          "size": 189952,
+          "sha256": "bfe24218be719cf5b91d829283953432907922333280931b755d83ac793fd8b2"
+        },
+        {
+          "path": "feeder/dlss5-feed.addon64",
+          "size": 329728,
+          "sha256": "6854d012eac307021cd31c978bafd42f1e22c5b7b2922c80e0a0010d428a3fd7"
+        },
+        {
+          "path": "feeder/host64/renodx-dlss.addon64",
+          "size": 2902016,
+          "sha256": "25600017cf95ad797eabb4e93de694b0dc1fce472999381c114bf44a7692ef60"
+        },
+        {
+          "path": "feeder/host64/renodx-dlss5.addon64",
+          "size": 878080,
+          "sha256": "342341f669f1d64e0c70c8593a07a2fab5075e073dfae97c331c9a6776260a0a"
+        },
+        {
+          "path": "feeder/layer-x64/VkLayer_feed_vk.dll",
+          "size": 18944,
+          "sha256": "ed5978fff1ac1b2c85aed7b1ffe2c7668e2be71f5a8cff86b4327bfa1d959a28"
+        },
+        {
+          "path": "feeder/layer-x64/VkLayer_feed_vk.json",
+          "size": 589,
+          "sha256": "c15967b3f8847a145e21058a1e57e92c595ee17fc5dd23ab3278b0148ad6e9d1"
+        },
+        {
+          "path": "feeder/layer-x64/run-with-feed-layer.bat",
+          "size": 730,
+          "sha256": "bc9aa7964742e23653556be978f540f503f3cef928b6de7a38f77c570bb764f9"
+        },
+        {
+          "path": "feeder/layer-x86/VkLayer_feed_vk32.dll",
+          "size": 15872,
+          "sha256": "cbb3039e13ce1a851c00bba24a93586ea8d9731dad3fcf426f412cc764a61860"
+        },
+        {
+          "path": "feeder/layer-x86/VkLayer_feed_vk32.json",
+          "size": 584,
+          "sha256": "28f8174eb8fed02266bafa6910eab07922ec6d2bdb33110699c586f74b254921"
+        },
+        {
+          "path": "feeder/layer-x86/run-with-feed-layer32.bat",
+          "size": 840,
+          "sha256": "75d4584ad01619402a10e0d8342b114613057a1d3b0ac8dbe9280b740090c3e8"
+        },
+        {
+          "path": "feeder/licenses/DLSS5-Feeder-LICENSE.txt",
+          "size": 1187,
+          "sha256": "6562d5a5e3d7534711e34f4b34335f23f067acc839ae5274c1250bf5f4654b8b"
+        },
+        {
+          "path": "feeder/licenses/THIRD-PARTY-SOURCES.txt",
+          "size": 534,
+          "sha256": "8b9371240a4d9341fd4f3dcea6c203564e02e1fe1a54d7ecc6a3a0650facd4f9"
+        },
+        {
+          "path": "feeder/licenses/VORT-LICENSE.txt",
+          "size": 1068,
+          "sha256": "800bacb0f9db4df8203f0dad1f99947109a44f4097380807e0483bd62dee0d41"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/DLSS5_Feed.fx",
+          "size": 52600,
+          "sha256": "c4ba1610df8e1593faa7c203d6d0517058d3a8ecf2dfda18ca67849844391456"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_ACES.fxh",
+          "size": 36642,
+          "sha256": "967cb4914457f18cc91e8844e6f7ccef0b353e4091e38f9c8667d36d45309b61"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_Bloom.fxh",
+          "size": 8242,
+          "sha256": "a3ab7942b73c61dcabe9b83ae42dafe65956c7a60d627aea27ede48a7cfb3c04"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_BlueNoise.fxh",
+          "size": 354,
+          "sha256": "a1eca01ddc6bdfef2b0c52601d297c59d7dabd71039d1489b7092532407cb455"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_ColorChanges.fxh",
+          "size": 12499,
+          "sha256": "0cbd91dff9aa5ab615a206f56ba760378810a5540d4f2928e35138c7980b1538"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_ColorTex.fxh",
+          "size": 497,
+          "sha256": "f5eef2db313c73b0419503295731c03bc4365fe1ed219f4afa618707b59e8d6c"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_Defs.fxh",
+          "size": 23415,
+          "sha256": "a00e99ece8b07899a7918a5248a2d603fd7f98882c795e3d31b9470cfe70a61c"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_Depth.fxh",
+          "size": 1892,
+          "sha256": "92d4f0a93b3945452c861e580117bb875bb594157694b3c8741790eaf3826205"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_Filters.fxh",
+          "size": 4848,
+          "sha256": "8d98a78f2fd7fe91f34bf4044d81094bd40fbb2c7b8f520ef66c5043f720f98d"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_HDRTex.fxh",
+          "size": 166,
+          "sha256": "5d3d002a6d4d0fc6e67dcdd4a68497163268fbb590c7477220dac8f1293f916e"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_MotionBlur.fxh",
+          "size": 19846,
+          "sha256": "67edbc5db1645d3c10c08375eb0bec0911c59c4fc1d3dde2d3e9c46a292ea35b"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_MotionBlur_Cheap.fxh",
+          "size": 13122,
+          "sha256": "0837c8151a50ef57c77bab7a3b14dd4c3b92354e4021ee37f54eb47f3f5589c7"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_MotionUtils.fxh",
+          "size": 5765,
+          "sha256": "2d353b23cea6961ca40308a6aebf1e56d509485a728399d5f6b36427b7023027"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_MotionVectors.fxh",
+          "size": 17148,
+          "sha256": "22d5c8f8a5f2cccee0ddde994ba04a7bc5379c54b1b3e9c7cf7d46f1f8ead87d"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_Motion_UI.fxh",
+          "size": 4934,
+          "sha256": "29783705b01d7b83a408d29a9d4b72c5a90012a91fb05ebdf1166ba9e9aeac2b"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_OKColors.fxh",
+          "size": 16191,
+          "sha256": "5a0a8468e97eaa9e8e018246e12002a86e3fb0c7a9cb97a3bc38390fc3f854e2"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_Static_UI.fxh",
+          "size": 8274,
+          "sha256": "ccd75ef28359b5324cf479fe568fbad7586ac203f6b1921f1b6fae48ae19bef2"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_TAA.fxh",
+          "size": 5837,
+          "sha256": "9b5c701fdacb37f15e565ca1aa3a861e4df3f55db493cd6589d509927ed08ede"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/Includes/vort_Tonemap.fxh",
+          "size": 2903,
+          "sha256": "9413eef6190303e920356310bc3aa2a270c052a1bcfde44f024f0a8986095f30"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/ReShade.fxh",
+          "size": 4250,
+          "sha256": "6dabfbbaf968c3871905d2ea17f96572ff7b1cec01310b5d0e5252b66b30174f"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/ReShadeUI.fxh",
+          "size": 9930,
+          "sha256": "78adf672df47460297eb9fe6dd238d2aafa24510b52b84feb1a745dff70eb901"
+        },
+        {
+          "path": "feeder/reshade-shaders/Shaders/vort_Motion.fx",
+          "size": 2359,
+          "sha256": "71ef3086ccf86792f5a333346eebb7b857434583712d3a51b9998db99e562edc"
+        },
+        {
+          "path": "feeder/reshade-shaders/Textures/vort_BlueNoise.png",
+          "size": 262548,
+          "sha256": "050d26db9283fbaece3b6883e300d22403631d83a12a5f2f79dc8b789b860305"
+        },
+        {
+          "path": "feeder/reshade-shaders/Textures/vort_MLUT.png",
+          "size": 3892952,
+          "sha256": "acb25ed926e7e847aeb0ef521745287d4ddda3c7f22e472ee42d61bb3064bbd7"
+        },
+        {
+          "path": "renodx-dlss5.addon64",
+          "size": 878080,
+          "sha256": "342341f669f1d64e0c70c8593a07a2fab5075e073dfae97c331c9a6776260a0a"
+        },
+        {
+          "path": "reshade-vulkan/ReShade32.dll",
+          "size": 4398080,
+          "sha256": "da430e0a9c6eecefa0d1b27d05e16c426fb5d04e808b194d914eaac4b31bc0f8"
+        },
+        {
+          "path": "reshade-vulkan/ReShade32.json",
+          "size": 526,
+          "sha256": "dbfdbadb8c64b398b2f8bf30469841ab8c35e10c9da40ba69b966559d5fa15f6"
+        },
+        {
+          "path": "reshade-vulkan/ReShade64.dll",
+          "size": 5592064,
+          "sha256": "0cee63f9c9f13f3ac909c5b4903f4dbb4b719a7ab3b4f13b0deaf83c814b94f7"
+        },
+        {
+          "path": "reshade-vulkan/ReShade64.json",
+          "size": 526,
+          "sha256": "aa21713718843e531da396e2bfc80772c9cb3c369d6c30b836be6b0ae812d503"
+        },
+        {
+          "path": "streamline/nis.license.txt",
+          "size": 1199,
+          "sha256": "f80ecfbce8a84a5b4c1c59dc5a9f0ee9cf5a989c9fba3a9486ee874f7595a454"
+        },
+        {
+          "path": "streamline/nvngx_dlss.dll",
+          "size": 58956912,
+          "sha256": "3975567b8943c53acce397f2b72380092f84f162d00b0d2c7d08a1025c563983"
+        },
+        {
+          "path": "streamline/nvngx_dlss.license.txt",
+          "size": 27316,
+          "sha256": "b6f4b4b6f582c9523ed4dfe89a4fae4cfc9c61f9c57e335e00ccee5f9b2b2e4b"
+        },
+        {
+          "path": "streamline/nvngx_dlssd.dll",
+          "size": 48343664,
+          "sha256": "4bc7ea5fcb2f32cf86bc2cb072e8d2860914a0be511cbdcb2fc206c1d9d83b80"
+        },
+        {
+          "path": "streamline/nvngx_dlssg.dll",
+          "size": 7460976,
+          "sha256": "ff6e90eb78b827927dff5b4ecc6b1c870c2e9bca29ed9f48c7d348cc9e170b82"
+        },
+        {
+          "path": "streamline/nvngx_dlssnr.dll",
+          "size": 165840496,
+          "sha256": "8270b350cd82de5ce89806872cdd6b6a9249b80836b91bbeb3573470744cc206"
+        },
+        {
+          "path": "streamline/reflex.license.txt",
+          "size": 20504,
+          "sha256": "ebf83c07fb3b2939908c3795d887afde3161c89a28ba391724efc784ce1bdabe"
+        },
+        {
+          "path": "streamline/sl.common.dll",
+          "size": 830592,
+          "sha256": "a4b2b5acbe49fbc6d44dd432cac19cd53218f698b2539dc7ed0fb268c72cfc8d"
+        },
+        {
+          "path": "streamline/sl.dlss.dll",
+          "size": 421504,
+          "sha256": "1eb5fb3d6f01d340fe086d981cc2de4f18aa6d05ee276e5cf28ecd54818dcc8b"
+        },
+        {
+          "path": "streamline/sl.dlss_g.dll",
+          "size": 625792,
+          "sha256": "b8b5effd7debdb750abd216de43385fb653261712bc315d85eba68811fb3ee02"
+        },
+        {
+          "path": "streamline/sl.dlss_nr.dll",
+          "size": 401024,
+          "sha256": "9f6672e5e0170dc118a3188d21bda187e1fc1aa3502895b21ab846d23165c11d"
+        },
+        {
+          "path": "streamline/sl.interposer.dll",
+          "size": 651392,
+          "sha256": "27b2190057994c0b287c2c5716953bf1586f6499ac12fbbb2092b9aaf8396570"
+        },
+        {
+          "path": "streamline/sl.nis.dll",
+          "size": 1155200,
+          "sha256": "6039e38a1af56c8e86f3e936596e2db910bf3d76bbf4268562a3b13763049dfa"
+        },
+        {
+          "path": "streamline/sl.pcl.dll",
+          "size": 360064,
+          "sha256": "12aa4e76c28a27c735e4ecb3072f44d09428acb107b70ac38e4bd48ddb05f88d"
+        },
+        {
+          "path": "streamline/sl.reflex.dll",
+          "size": 382080,
+          "sha256": "ecf12973cdcec2ffced2ea77b1c7e45f4d387e7c864ddb5531b66a6f947effb3"
+        }
+      ]
+    },
+    "addons": {
+      "files": [
+        {
+          "path": "dlss5-feed.addon64",
+          "size": 329728,
+          "sha256": "6854d012eac307021cd31c978bafd42f1e22c5b7b2922c80e0a0010d428a3fd7"
+        }
+      ]
+    },
+    "overlay-bin": {
+      "files": [
+        {
+          "path": "dlss5-lab-overlay.addon64",
+          "size": 879616,
+          "sha256": "1d4c71b194f9ce4900c559d9a1e9119708b2fe6f67bf5a199e928f039f95a613"
+        }
+      ]
+    }
+  }
+}

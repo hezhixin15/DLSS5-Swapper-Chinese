@@ -12,6 +12,7 @@
     "test:payload": "node scripts/test-feeder-payload.js",
     "test:optiscaler": "node scripts/test-optiscaler-payload.js",
     "payload": "node scripts/collect-payload.js",
+    "payload:lock": "node scripts/payload-lock.js",
     "prebuild": "npm run payload",
     "build": "electron-builder --win",
     "build:linux": "electron-builder --linux AppImage deb",
