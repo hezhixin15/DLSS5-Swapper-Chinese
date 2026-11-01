@@ -296,6 +296,18 @@ function gameApiProfile(file, renderer = rdr2Renderer) {
       choices: [{ api: 'dxgi', label: 'DirectX 11' }]
     };
   }
+  // Cities: Skylines II is the same Unity shape: UnityPlayer.dll links
+  // opengl32.dll statically for the fallback path Windows never takes, while
+  // the game presents through Direct3D 11 that it resolves at runtime - it even
+  // ships nvngx_dlss.dll, which only works on DX11. Nothing in the folder
+  // imports d3d11.dll, so the module walk answered OpenGL and offered routes
+  // that cannot work.
+  if (/^cities2\.exe$/i.test(path.basename(file))) {
+    return {
+      detected: { api: 'dxgi', label: 'DirectX 11', via: 'game-profile' },
+      choices: [{ api: 'dxgi', label: 'DirectX 11' }]
+    };
+  }
   return null;
 }
 
