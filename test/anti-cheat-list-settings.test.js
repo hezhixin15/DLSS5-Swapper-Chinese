@@ -133,7 +133,7 @@ test('the list channel decides which sources are fetched, and is remembered', as
   assert.equal(call('set-anti-cheat-list-channel', 'gitee'), 'gitee');
   assert.equal(call('settings').antiCheat.channel, 'gitee');
   await call('anti-cheat-list-check', true);
-  assert.deepEqual(calls.options.sources, ['https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese/raw/main/anti-cheat-list.txt']);
+  assert.deepEqual(calls.options.sources, ['https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese/raw/main/src/data/anti-cheat-list.txt']);
   assert.equal(call('set-anti-cheat-list-channel', 'nonsense'), 'github', 'an unknown channel falls back to GitHub');
 });
 

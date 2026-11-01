@@ -87,5 +87,9 @@ test('each channel has its own sources, and GitHub is the fallback', () => {
   assert.deepEqual(sourcesFor('gitee'), SOURCES_BY_CHANNEL.gitee);
   assert.ok(SOURCES_BY_CHANNEL.gitee.length >= 1);
   assert.ok(SOURCES_BY_CHANNEL.gitee.every(url => url.startsWith('https://gitee.com/hezhixin15/DLSS5-Swapper-Chinese/')));
+  // Every source must name the path the file is actually committed under;
+  // the repository root answers 404 and the list silently stops updating.
+  const everywhere = [...SOURCES_BY_CHANNEL.github, ...SOURCES_BY_CHANNEL.gitee];
+  assert.ok(everywhere.every(url => url.endsWith('/src/data/anti-cheat-list.txt')), everywhere.join('\n'));
   assert.deepEqual(sourcesFor('nonsense'), SOURCES, 'an unknown channel reads GitHub');
 });
